@@ -1,191 +1,167 @@
-# ZZZ
-[![Korean](https://img.shields.io/badge/🇰🇷_Korean-555555?style=for-the-badge)](./README.ko.md) [![English](https://img.shields.io/badge/🇺🇸_English-555555?style=for-the-badge)](./README.md)
+# 💤 ZZZ
+[![한국어](https://img.shields.io/badge/🇰🇷_Korean-555555?style=for-the-badge)](./README.md)
+[![English](https://img.shields.io/badge/🇺🇸_English-555555?style=for-the-badge)](./README.en.md)
+[![구조 가이드](https://img.shields.io/badge/📘_Project_Structure-555555?style=for-the-badge)](./PROJECT_STRUCTURE.md)
+[![실행 방법](https://img.shields.io/badge/⚙️_How_to_Run-555555?style=for-the-badge)](./HOW_TO_RUN.md)
 
 <div align="center">
 
-### Personalized Sleep Quality Prediction & Interpretation Service  
-### based on Wearable Data, Environmental Sensing, and Smart Healthcare Logic
+### 웨어러블 데이터와 환경 센서를 함께 활용하여  
+### 취침 전 수면 질을 예측하고, 기상 후 결과를 해석하는 개인 맞춤형 수면 관리 서비스
 
 <br>
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
 ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 ![Fitbit](https://img.shields.io/badge/Fitbit-00B0B9?style=for-the-badge&logo=fitbit&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 
 ![Status](https://img.shields.io/badge/Status-In%20Progress-6DB33F?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-On--Device%20%2B%20Cloud-6A5ACD?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-On--Premise%20%2B%20Cloud%20Ready-6A5ACD?style=for-the-badge)
 ![Domain](https://img.shields.io/badge/Domain-Smart%20Healthcare-0A66C2?style=for-the-badge)
 
 </div>
 
 ---
 
-## Overview
+## 🔍 Overview
 
-**ZZZ** is a smart healthcare service designed to predict sleep quality degradation **before sleep**, analyze actual sleep outcomes **after waking**, and gradually reflect the user’s own patterns over time.
+**ZZZ**는 취침 전에 오늘 밤의 수면 질 저하 가능성을 예측하고, 기상 후에는 실제 수면 결과와 사용자 체감을 함께 해석하며, 반복 사용을 통해 점진적으로 개인화되는 스마트 헬스케어 서비스입니다.
 
-Rather than simply displaying recorded health data, ZZZ focuses on a full cycle of:
+이 프로젝트는 단순히 “어젯밤 어떻게 잤는지”를 보여주는 데서 끝나는 것이 아니라, 다음과 같은 순환 구조를 지향합니다.
 
-- collecting biometric and environmental data,
-- interpreting that data in context,
-- providing actionable feedback,
-- and refining future predictions through repeated use.
+- 웨어러블 및 환경 데이터 수집
+- 현재 상태와 수면 결과 해석
+- 행동 가능한 피드백 제공
+- 누적 패턴을 반영한 이후 예측 기준 갱신
 
-The service combines **Fitbit wearable data**, **environmental sensor data**, and **user feedback** to support a more practical and personalized sleep management experience.
-
----
-
-## Why ZZZ?
-
-Most existing sleep-related services mainly provide **post-sleep reports**.  
-Users can check how they slept, but by then the sleep has already ended, which makes it difficult to actually change behavior for that night.
-
-ZZZ starts from a different point.
-
-It aims to:
-
-- estimate possible sleep quality decline **before bedtime**
-- provide interpretable reasons and simple behavioral suggestions
-- compare objective results with subjective satisfaction after waking
-- gradually adjust the interpretation based on accumulated user patterns
-
-In other words, ZZZ is not just a sleep record viewer.  
-It is designed as a **prevention-oriented and interpretation-oriented smart healthcare service**.
+즉, ZZZ는 단순한 수면 기록 서비스가 아니라 **사전 개입**, **설명 가능한 해석**, **점진적 개인화**를 핵심으로 두는 서비스입니다.
 
 ---
 
-## Core Value
+## 🤔 Why ZZZ?
 
-### 1. Pre-sleep intervention
-ZZZ predicts the risk of sleep quality decline before the user goes to bed, using recent wearable data and environmental conditions.
+기존의 많은 수면 관련 서비스는 주로 **기상 후 결과 확인**에 머무릅니다.  
+사용자는 수면 시간, 수면 단계, 점수와 같은 결과를 볼 수는 있지만, 이미 수면이 끝난 뒤이기 때문에 그날 밤의 행동을 바꾸기에는 늦은 경우가 많습니다.
 
-### 2. Explainable interpretation
-The service does not stop at a score or warning.  
-It aims to explain **why** the result occurred and what factors may have contributed to it.
+또한 같은 수면 데이터가 기록되더라도 사용자가 실제로 느끼는 만족도는 다를 수 있으며, 단순한 점수만으로는 왜 그런 결과가 나왔는지 이해하기 어려운 경우도 많습니다.
 
-### 3. Gradual personalization
-Objective sleep results and subjective user satisfaction are both considered.  
-Over time, the system updates accumulated patterns and adjusts its interpretation to better fit the individual user.
+ZZZ는 이러한 한계를 보완하기 위해 다음과 같은 방향을 목표로 합니다.
 
----
-
-## Main Features
-
-### Pre-sleep Prediction
-Before sleep, the system analyzes recent biometric and environmental data to estimate the possibility of lower sleep quality and provide a simple action suggestion.
-
-### Post-sleep Analysis
-After waking, the system calculates sleep-related results, compares them with user feedback, and generates an interpretation of major and secondary factors.
-
-### Sleep Score Calculation
-The service calculates a 100-point sleep score based on:
-
-- **Time Asleep** — 50 points
-- **Deep & REM** — 25 points
-- **Restoration** — 25 points
-
-### Pattern Update
-Accumulated sleep patterns, user satisfaction trends, and gaps between objective score and subjective feeling are stored and reflected in later predictions.
+- 취침 전에 수면 질 저하 가능성을 예측
+- 결과를 단순 점수로 끝내지 않고 해석 가능한 이유와 행동 제안 제공
+- 기상 후 실제 수면 결과와 주관적 만족도를 함께 반영
+- 누적된 사용자 패턴을 바탕으로 이후 예측과 해석을 점진적으로 보정
 
 ---
 
-## Data Sources
+## ✨ Core Value
 
-### Wearable Data
-Collected through Fitbit Web API:
+### 1. 사전 개입
+취침 전 시점에 현재 상태와 환경을 바탕으로 수면 질 저하 가능성을 미리 예측하고, 사용자가 실제로 행동을 바꿀 수 있는 기회를 제공합니다.
 
-- heart rate
-- activity / steps
-- sleep logs
-- sleep stages
+### 2. 설명 가능한 해석
+단순히 결과를 보여주는 것이 아니라, 왜 그런 결과가 나왔는지와 어떤 요인이 영향을 주었는지를 함께 설명하는 방향을 지향합니다.
 
-### Environmental Data
-Collected through on-device sensing:
-
-- temperature
-- humidity
-- MQ-5 raw value
-- normalized indoor gas change index
-
-### User Input
-Provided after waking:
-
-- subjective sleep satisfaction score
+### 3. 점진적 개인화
+자동 계산 결과와 사용자의 주관적 만족도를 함께 반영하여, 시간이 지날수록 사용자에게 더 맞는 예측 기준과 해석 기준으로 조정됩니다.
 
 ---
 
-## System Concept
+## 🛠 Main Features
 
-ZZZ is designed with a hybrid structure that can operate across **on-device** and **cloud-based** components.
+### 취침 전 수면 질 저하 위험 예측
+취침 전 1시간의 웨어러블 데이터와 환경 데이터를 바탕으로 오늘 밤 수면 질 저하 가능성을 예측합니다.
 
-### On-device layer
-- biometric/environmental data collection
-- local storage
-- feature extraction
-- pre-sleep prediction
-- post-sleep analysis
+### 현재 위험 요인 및 행동 제안 제공
+예측 결과와 함께 현재 위험 요인 1~2개를 제시하고, 바로 실천할 수 있는 행동 제안 1개를 제공합니다.
 
-### Cloud layer
-- long-term storage
-- service extension
-- scalable processing
-- future dashboard / API integration
+### 기상 후 원인 분석
+기상 후 실제 수면 결과와 사용자 만족도를 함께 반영하여 주요 원인, 보조 원인, 설명형 피드백을 생성합니다.
 
-The project is currently centered around an **on-device implementation**, while keeping cloud expansion in mind from the start.
+### Sleep Score 계산
+서비스는 다음 기준을 바탕으로 100점 만점의 Sleep Score를 계산합니다.
 
----
+- **Time Asleep** — 50점
+- **Deep & REM** — 25점
+- **Restoration** — 25점
 
-## Expected Flow
-
-1. Collect Fitbit and environmental sensor data  
-2. Store and organize data locally  
-3. Predict possible sleep quality decline before bedtime  
-4. Show simple reasons and behavior suggestions  
-5. Collect actual sleep result and subjective satisfaction after waking  
-6. Calculate Sleep Score and interpret causes  
-7. Update accumulated user pattern data  
-8. Reflect updated patterns in future predictions
+### 누적 패턴 데이터 갱신
+수면 결과, 사용자 만족도, 자동 점수와 체감의 차이를 누적하여 이후 예측과 해석의 기준으로 반영합니다.
 
 ---
 
-## Tech Stack
+## 🏗 System Concept
 
-- **Python**
-- **Raspberry Pi**
-- **SQLite**
-- **Fitbit Web API**
-- **DHT11**
-- **MQ-5 + ADC module**
-- **AWS**
+ZZZ는 **On-Premise 구현을 중심으로 설계된 스마트 헬스케어 시스템**이며, 이후 클라우드 확장까지 고려한 구조를 갖습니다.
 
----
+### On-Premise Layer
+- Raspberry Pi 기반 환경 센서 수집
+- Fitbit API 호출
+- 로컬 버퍼 및 저장
+- feature 생성
+- 취침 전 예측
+- 기상 후 사후 분석
+- REST API 및 대시보드 서비스 제공
 
-## Project Direction
+### Cloud-Ready Layer
+- 장기 저장
+- 확장 가능한 처리 파이프라인
+- 설명형 피드백 계층 강화
+- 서비스 구조 확장
 
-This project is not intended to be a medical diagnosis system.  
-Instead, it is designed as a **supportive smart healthcare service** that helps users better understand, manage, and gradually improve their sleep using repeated data-driven feedback.
-
-The long-term direction of ZZZ is:
-
-- stronger personalization
-- clearer interpretation
-- smoother on-device to cloud integration
-- practical smart healthcare service design grounded in real implementation constraints
+현재 프로젝트는 **On-Premise 구현을 우선**으로 진행하되, 이후 클라우드 전환 시에도 구조적으로 자연스럽게 이어질 수 있도록 설계하고 있습니다.
 
 ---
 
-## Future Expansion
+## 💻 Tech Stack
 
-- dashboard integration
-- AWS-based storage and processing pipeline
-- explainable feedback generation layer
-- automated scheduling and device monitoring
-- more refined user-specific pattern adjustment logic
+- **Backend**: Node.js, Express
+- **Database**: SQLite
+- **Hardware**: Raspberry Pi, DHT11, MQ-5 + ADC module
+- **External API**: Fitbit Web API
+- **Infra**: AWS *(future extension architecture)*
 
 ---
 
-## Keywords
+## 🎯 Project Direction
 
-`Smart Healthcare` `Sleep Quality Prediction` `Wearable Data` `Fitbit API` `Raspberry Pi` `Environmental Sensing` `On-Device AI` `Explainable Feedback` `Personalized Health Service`
+이 프로젝트는 의료 진단 시스템을 목표로 하지 않습니다.
+
+대신 사용자가 자신의 수면을 더 잘 이해하고, 취침 전에 행동을 조정하며, 기상 후 결과를 해석하고, 반복 사용을 통해 점진적으로 더 맞는 기준을 형성할 수 있도록 돕는 **보조적 스마트 헬스케어 서비스**를 목표로 합니다.
+
+장기적으로는 다음과 같은 방향을 지향합니다.
+
+- 더 강한 개인화
+- 더 명확한 해석
+- On-Premise와 Cloud의 자연스러운 연결
+- 실제 구현 제약을 반영한 현실적인 스마트 헬스케어 서비스 설계
+
+---
+
+## 🚀 Future Expansion
+
+- [ ] 대시보드 UI/UX 고도화
+- [ ] AWS 기반 저장 및 처리 파이프라인 확장
+- [ ] 설명형 피드백 계층 강화
+- [ ] 자동 실행 스케줄링 및 장치 상태 모니터링
+- [ ] 사용자별 패턴 보정 로직 고도화
+
+---
+
+## 📚 문서 안내
+
+프로젝트 구조와 실행 흐름, 각 계층의 역할은 아래 문서에서 확인할 수 있습니다.
+
+[![README](https://img.shields.io/badge/README-2563EB?style=for-the-badge)](./README.md)
+[![How to Run](https://img.shields.io/badge/How_to_Run-2563EB?style=for-the-badge)](./HOW_TO_RUN.md)
+[![RPi Layer](https://img.shields.io/badge/RPi_Layer-2563EB?style=for-the-badge)](./rpi/README.md)
+[![Processing Layer](https://img.shields.io/badge/Processing_Layer-2563EB?style=for-the-badge)](./processing/README.md)
+[![Service Layer](https://img.shields.io/badge/Service_Layer-2563EB?style=for-the-badge)](./service/README.md)
+[![Storage Layer](https://img.shields.io/badge/Storage_Layer-2563EB?style=for-the-badge)](./storage/README.md)
+[![English README](https://img.shields.io/badge/English_README-2563EB?style=for-the-badge)](./README.en.md)
+---
+
+**Keywords**: `Smart Healthcare` `Sleep Quality Prediction` `Wearable Data` `Fitbit API` `Raspberry Pi` `Environmental Sensing` `Explainable Feedback` `Personalized Health Service` `On-Premise System`

@@ -155,13 +155,15 @@ In the long term, the project aims for:
 
 More details about the project structure, execution flow, and layer responsibilities are available in the documents below.
 
-- [Project Structure Guide](./PROJECT_STRUCTURE.md)
-- [How to Run](./HOW_TO_RUN.md)
-- [RPi Layer Guide](./rpi/README.md)
-- [Processing Layer Guide](./processing/README.md)
-- [Service Layer Guide](./service/README.md)
-- [Storage Layer Guide](./storage/README.md)
-- [Korean README](./README.md)
+[![README](https://img.shields.io/badge/README-2563EB?style=for-the-badge)](./README.md)
+[![How to Run](https://img.shields.io/badge/How_to_Run-2563EB?style=for-the-badge)](./HOW_TO_RUN.md)
+[![Decision Log](https://img.shields.io/badge/Decision_Log-2563EB?style=for-the-badge)](./DECISION_LOG.md)
+[![API Plan](https://img.shields.io/badge/API_Plan-2563EB?style=for-the-badge)](./API_PLAN.md)
+[![RPi Layer](https://img.shields.io/badge/RPi_Layer-2563EB?style=for-the-badge)](./rpi/README.md)
+[![Processing Layer](https://img.shields.io/badge/Processing_Layer-2563EB?style=for-the-badge)](./processing/README.md)
+[![Service Layer](https://img.shields.io/badge/Service_Layer-2563EB?style=for-the-badge)](./service/README.md)
+[![Storage Layer](https://img.shields.io/badge/Storage_Layer-2563EB?style=for-the-badge)](./storage/README.md)
+[![Korean README](https://img.shields.io/badge/English_README-2563EB?style=for-the-badge)](./README.md)
 
 ---
 

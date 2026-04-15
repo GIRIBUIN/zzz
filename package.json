@@ -1,0 +1,15 @@
+{
+    "name": "zzz",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+      "dev": "node service/server.js",
+      "start": "node service/server.js",
+      "init-db": "node storage/db/init_db.js"
+    },
+    "dependencies": {
+      "dotenv": "^16.4.5",
+      "express": "^4.19.2",
+      "sqlite3": "^5.1.7"
+    }
+  }

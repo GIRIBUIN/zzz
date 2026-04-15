@@ -62,7 +62,6 @@ service/
 ├─ public/
 ├─ routes/
 ├─ services/
-├─ package.json
 ├─ README.md
 └─ server.js
 ```
@@ -181,18 +180,9 @@ service/
 
 ### 4-6. `package.json`
 
-`package.json`은 `service/` 계층을 Node.js 프로젝트로 실행하기 위한 설정 파일입니다.
+Node.js 프로젝트의 실행 기준은 현재 루트 `package.json`에서 관리합니다.
 
-이 파일은 다음 역할을 가집니다.
-
-- 의존성 패키지 관리
-- 실행 스크립트 정의
-- 서비스 계층의 Node.js 앱 설정
-
-현재 구조에서는 `service/`를 **실행 중심 계층**으로 보기 때문에,  
-`package.json`을 이 폴더 안에 두는 방식으로 관리합니다.
-
-즉, 현재 구조에서는 `service/`가 Node.js 실행 기준점입니다.
+즉, `service/`는 Express 서버와 API 계층의 실제 코드가 위치한 폴더이며, 의존성 설치와 실행 스크립트는 프로젝트 루트 기준으로 관리합니다.
 
 ---
 

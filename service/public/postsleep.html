@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZZZ - Post Sleep Feedback</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+    }
+    .box {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      max-width: 320px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      margin-top: 18px;
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+    pre {
+      background: #f7f7f7;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Post-sleep Feedback</h1>
+    <p>기상 후 수면 만족도를 입력하는 화면입니다.</p>
+    <p><a href="/">← index로 돌아가기</a></p>
+  </div>
+
+  <div class="box">
+    <h2>만족도 입력</h2>
+
+    <label for="sleepDate">sleep_date</label>
+    <input type="date" id="sleepDate" />
+
+    <label for="satisfactionScore">satisfaction_score (0~100)</label>
+    <input type="number" id="satisfactionScore" min="0" max="100" />
+
+    <button id="submitBtn">저장 / 수정</button>
+  </div>
+
+  <div class="box">
+    <h2>응답 결과</h2>
+    <pre id="resultBox">아직 요청하지 않았습니다.</pre>
+  </div>
+
+  <script src="/postsleep.js"></script>
+</body>
+</html>

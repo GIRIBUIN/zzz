@@ -22,10 +22,16 @@ function saveFeedback(payload) {
       return reject(new Error("satisfaction_score must be between 0 and 100"));
     }
 
+    // 미래 날짜 입력 방지
+    const today = new Date().toISOString().slice(0, 10);
+    if (sleep_date > today) {
+      return reject(new Error("future sleep_date is not allowed"));
+    }
+
     const now = new Date().toISOString();
 
     const selectQuery = `
-      SELECT id
+      SELECT id, satisfaction_score
       FROM user_feedback
       WHERE sleep_date = ?
       LIMIT 1
@@ -36,7 +42,20 @@ function saveFeedback(payload) {
         return reject(selectErr);
       }
 
+      // 이미 있는 날짜
       if (row) {
+        // 값이 같으면 no_change
+        if (Number(row.satisfaction_score) === score) {
+          return resolve({
+            message: "feedback unchanged",
+            action: "no_change",
+            id: row.id,
+            sleep_date,
+            satisfaction_score: score
+          });
+        }
+
+        // 값이 다르면 update
         const updateQuery = `
           UPDATE user_feedback
           SET satisfaction_score = ?, created_at = ?
@@ -58,6 +77,7 @@ function saveFeedback(payload) {
           });
         });
       } else {
+        // 없으면 insert
         const insertQuery = `
           INSERT INTO user_feedback (sleep_date, satisfaction_score, created_at)
           VALUES (?, ?, ?)

@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 800px;
+      max-width: 900px;
       margin: 60px auto;
       padding: 0 20px;
       line-height: 1.6;
@@ -16,19 +16,67 @@
       border: 1px solid #ddd;
       border-radius: 12px;
       padding: 24px;
+      margin-bottom: 20px;
     }
-    code {
-      background: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 6px;
+    .link-list a {
+      display: inline-block;
+      margin-right: 12px;
+      margin-bottom: 10px;
+      text-decoration: none;
+      color: #2563eb;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+    pre {
+      background: #f7f7f7;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
     }
   </style>
 </head>
 <body>
   <div class="box">
     <h1>💤 ZZZ</h1>
-    <p>로컬 서비스가 정상적으로 실행 중입니다.</p>
-    <p>Health check endpoint: <code>/health</code></p>
+    <p>ZZZ 로컬 서비스 허브 페이지입니다.</p>
+    <p>현재 구현된 기능과 상태를 여기서 확인할 수 있습니다.</p>
   </div>
+
+  <div class="box">
+    <h2>서비스 상태 확인</h2>
+    <p>아래 버튼을 누르면 <code>/health</code> 응답을 확인할 수 있습니다.</p>
+    <button id="healthBtn">Health Check</button>
+    <pre id="healthResult">아직 확인하지 않았습니다.</pre>
+  </div>
+
+  <div class="box">
+    <h2>현재 이동 가능한 화면</h2>
+    <div class="link-list">
+      <a href="/postsleep.html">Post-sleep Feedback 화면으로 이동</a>
+    </div>
+    <p>추후 여기에 presleep 화면, 결과 조회 화면 등을 추가할 수 있습니다.</p>
+  </div>
+
+  <script>
+    const healthBtn = document.getElementById("healthBtn");
+    const healthResult = document.getElementById("healthResult");
+
+    healthBtn.addEventListener("click", async () => {
+      healthResult.textContent = "확인 중...";
+      try {
+        const response = await fetch("/health");
+        const data = await response.json();
+        healthResult.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        healthResult.textContent = `오류: ${error.message}`;
+      }
+    });
+  </script>
 </body>
 </html>

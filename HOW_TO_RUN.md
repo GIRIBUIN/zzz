@@ -166,7 +166,121 @@ http://localhost:3000
 - `/result.html`
 - `/result/latest`
 
-## 10. 현재 기준 확인 가능한 항목
+---
+
+## 10. DB 확인용 명령어
+
+아래 명령들은 프로젝트 루트에서 실행합니다.
+
+### 10-1. 주요 테스트 테이블 row 수 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+const tables = ['prediction_result', 'sleep_score_result', 'sensor_raw', 'post_analysis_result'];
+let pending = tables.length;
+for (const table of tables) {
+  db.get(`SELECT COUNT(*) AS count FROM ${table}`, [], (err, row) => {
+    if (err) console.error(table, err.message);
+    else console.log(`${table}: ${row.count}`);
+    pending -= 1;
+    if (pending === 0) db.close();
+  });
+}
+'@ | node -
+```
+
+### 10-2. 최신 prediction 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at
+  FROM prediction_result
+  ORDER BY created_at DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-3. 최근 7일 sleep score 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.all(`
+  SELECT sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at
+  FROM sleep_score_result
+  ORDER BY sleep_date DESC
+  LIMIT 7
+`, [], (err, rows) => {
+  if (err) console.error(err);
+  else console.table(rows);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-4. 최신 sensor_raw 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, ts, temperature, humidity, mq5_raw, mq5_index, created_at
+  FROM sensor_raw
+  ORDER BY ts DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-5. 최신 post analysis 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, sleep_date, causes_json, analysis_text, created_at
+  FROM post_analysis_result
+  ORDER BY created_at DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-6. 최신 user feedback 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, sleep_date, satisfaction_score, created_at
+  FROM user_feedback
+  ORDER BY created_at DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+## 11. 현재 기준 확인 가능한 항목
 
 현재 기준으로는 아래 정도까지 확인할 수 있습니다.
 
@@ -186,7 +300,7 @@ http://localhost:3000
 - latest result 조회 확인
 - Result 화면의 feedback / prediction / sleep score / analysis 확인
 
-## 11. 추후 추가 예정
+## 12. 추후 추가 예정
 
 아래 항목은 구현이 진행되면 이 문서에 추가합니다.
 

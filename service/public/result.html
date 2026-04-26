@@ -4,59 +4,161 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ZZZ - Latest Result</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 60px auto;
-      padding: 0 20px;
-      line-height: 1.6;
-    }
-    .box {
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    button {
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-    }
-    pre {
-      background: #f7f7f7;
-      padding: 12px;
-      border-radius: 8px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-      font-weight: bold;
-    }
-  </style>
+  <link rel="stylesheet" href="/css/common.css" />
+  <link rel="stylesheet" href="/css/result.css" />
 </head>
 <body>
-  <div class="box">
-    <h1>Latest Result</h1>
-    <p>현재 저장된 최신 결과를 확인하는 화면입니다.</p>
-    <p><a href="/">← index로 돌아가기</a></p>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">Z</div>
+        <div class="brand-text">
+          <h1>ZZZ</h1>
+          <p>Smart Sleep Dashboard</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Overview</span>
+        </a>
+        <a href="/presleep.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Prediction</span>
+        </a>
+        <a href="/postsleep.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Post-sleep</span>
+        </a>
+        <a href="/result.html" class="nav-link active">
+          <span class="nav-icon">●</span>
+          <span>Result</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>Latest Result</h1>
+          <p>현재 사용자 기준 최신 저장 결과를 확인합니다.</p>
+        </div>
+      </header>
+
+      <div id="pageStatus" class="status-bar">불러오는 중...</div>
+
+      <section class="result-grid">
+        <!-- Feedback -->
+        <article id="feedbackCard" class="card">
+          <h2>Latest Feedback</h2>
+          <p class="card-desc">기상 후 사용자가 입력한 최신 만족도입니다.</p>
+
+          <div id="feedbackEmpty" class="empty-state">
+            아직 저장된 feedback 데이터가 없습니다.
+          </div>
+
+          <div id="feedbackFields" class="field-list" style="display: none;">
+            <div class="field">
+              <span class="label">Sleep Date</span>
+              <span id="feedbackSleepDate" class="value">-</span>
+            </div>
+            <div class="field">
+              <span class="label">Satisfaction Score</span>
+              <span id="feedbackSatisfactionScore" class="value accent">-</span>
+            </div>
+            <div class="field">
+              <span class="label">Saved At</span>
+              <span id="feedbackCreatedAt" class="value">-</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Prediction -->
+        <article id="predictionCard" class="card">
+          <h2>Latest Prediction</h2>
+          <p class="card-desc">취침 전 예측된 최신 위험도 결과입니다.</p>
+
+          <div id="predictionEmpty" class="empty-state">
+            아직 저장된 prediction 데이터가 없습니다.
+          </div>
+
+          <div id="predictionFields" class="field-list" style="display: none;">
+            <div class="field">
+              <span class="label">Risk Level</span>
+              <span id="predictionRiskLevel" class="value accent">-</span>
+            </div>
+            <div class="field">
+              <span class="label">Risk Score</span>
+              <span id="predictionRiskScore" class="value">-</span>
+            </div>
+            <div class="field">
+              <span class="label">Reasons</span>
+              <ul id="predictionReasons" class="list"></ul>
+            </div>
+            <div class="field">
+              <span class="label">Action</span>
+              <div id="predictionActionText" class="long-text">-</div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Sleep Score -->
+        <article id="sleepScoreCard" class="card">
+          <h2>Latest Sleep Score</h2>
+          <p class="card-desc">가장 최근 수면 점수 계산 결과입니다.</p>
+
+          <div id="sleepScoreEmpty" class="empty-state">
+            아직 저장된 sleep score 데이터가 없습니다.
+          </div>
+
+          <div id="sleepScoreFields" class="field-list" style="display: none;">
+            <div class="field score-field score-total">
+              <span class="label">Total Score</span>
+              <span id="sleepScoreTotal" class="value accent">-</span>
+            </div>
+
+            <div class="score-row">
+              <div class="field">
+                <span class="label">Time Asleep</span>
+                <span id="sleepScoreTimeAsleep" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Deep & REM</span>
+                <span id="sleepScoreDeepRem" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Restoration</span>
+                <span id="sleepScoreRestoration" class="value">-</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Analysis -->
+        <article id="analysisCard" class="card">
+          <h2>Latest Analysis</h2>
+          <p class="card-desc">가장 최근 수면 결과에 대한 해석입니다.</p>
+
+          <div id="analysisEmpty" class="empty-state">
+            아직 저장된 analysis 데이터가 없습니다.
+          </div>
+
+          <div id="analysisFields" class="field-list" style="display: none;">
+            <div class="field">
+              <span class="label">Main Causes</span>
+              <ul id="analysisCauses" class="list"></ul>
+            </div>
+            <div class="field">
+              <span class="label">Analysis</span>
+              <div id="analysisText" class="long-text">-</div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
   </div>
 
-  <div class="box">
-    <h2>최신 결과 조회</h2>
-    <button id="loadBtn">불러오기</button>
-  </div>
-
-  <div class="box">
-    <h2>응답 결과</h2>
-    <pre id="resultBox">아직 요청하지 않았습니다.</pre>
-  </div>
-
-  <script src="/result.js"></script>
+  <script src="/js/result.js"></script>
 </body>
 </html>

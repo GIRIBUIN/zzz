@@ -1,0 +1,48 @@
+/* service/public/css/presleep.css */
+
+.presleep-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 20px;
+}
+
+#inputFields,
+#resultFields {
+  display: grid;
+  gap: 12px;
+}
+
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.prediction-actions {
+  margin-top: 4px;
+}
+
+.result-hero .big-value {
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.result-meta .value {
+  font-size: 15px;
+}
+
+@media (max-width: 1100px) {
+  .presleep-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .input-grid {
+    grid-template-columns: 1fr;
+  }
+}

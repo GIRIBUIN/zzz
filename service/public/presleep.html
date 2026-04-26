@@ -1,139 +1,150 @@
+<!-- service/public/presleep.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZZZ - Pre Sleep Prediction</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 960px;
-      margin: 60px auto;
-      padding: 0 20px;
-      line-height: 1.6;
-    }
-    .box {
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    h1, h2 {
-      margin-top: 0;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-    }
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: bold;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      box-sizing: border-box;
-    }
-    textarea {
-      min-height: 80px;
-      resize: vertical;
-    }
-    button {
-      margin-top: 18px;
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-    }
-    pre {
-      background: #f7f7f7;
-      padding: 12px;
-      border-radius: 8px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-      font-weight: bold;
-    }
-    .desc {
-      color: #555;
-      font-size: 14px;
-    }
-  </style>
+  <title>ZZZ - Prediction</title>
+  <link rel="stylesheet" href="/css/common.css" />
+  <link rel="stylesheet" href="/css/presleep.css" />
 </head>
 <body>
-  <div class="box">
-    <h1>Pre-sleep Prediction</h1>
-    <p>취침 전 입력값을 바탕으로 수면 질 저하 위험을 예측하는 화면입니다.</p>
-    <p><a href="/">← index로 돌아가기</a></p>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">Z</div>
+        <div class="brand-text">
+          <h1>ZZZ</h1>
+          <p>Smart Sleep Dashboard</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Overview</span>
+        </a>
+        <a href="/presleep.html" class="nav-link active">
+          <span class="nav-icon">●</span>
+          <span>Prediction</span>
+        </a>
+        <a href="/postsleep.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Post-sleep</span>
+        </a>
+        <a href="/result.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Result</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>Pre-sleep Prediction</h1>
+          <p>최신 예측에 사용된 기준값과 예측 결과를 확인합니다.</p>
+        </div>
+      </header>
+
+      <div id="predictionStatus" class="status-bar">최신 prediction 데이터를 불러오는 중...</div>
+
+      <section class="presleep-grid">
+        <article class="card">
+          <h2>Latest Prediction Inputs</h2>
+          <p class="card-desc">가장 최근 예측에 실제로 사용된 입력값입니다.</p>
+
+          <div id="inputEmpty" class="empty-state">
+            아직 저장된 prediction input 데이터가 없습니다.
+          </div>
+
+          <div id="inputFields" class="field-list" style="display: none;">
+            <div class="field">
+              <span class="label">User ID</span>
+              <span id="inputUserId" class="value">-</span>
+            </div>
+
+            <div class="input-grid">
+              <div class="field">
+                <span class="label">Avg HR (1h)</span>
+                <span id="inputAvgHr" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Steps Sum (1h)</span>
+                <span id="inputStepsSum" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Calories Sum (1h)</span>
+                <span id="inputCaloriesSum" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Avg Temp (1h)</span>
+                <span id="inputAvgTemp" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Avg Humidity (1h)</span>
+                <span id="inputAvgHumidity" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Avg MQ5 Index (1h)</span>
+                <span id="inputAvgMq5" class="value">-</span>
+              </div>
+              <div class="field full-span">
+                <span class="label">Recent Avg Sleep Minutes</span>
+                <span id="inputRecentAvgSleep" class="value">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="prediction-actions">
+            <button id="predictBtn" class="btn btn-primary">Run Prediction</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Latest Prediction Result</h2>
+          <p class="card-desc">가장 최근 취침 전 예측 결과입니다.</p>
+
+          <div id="resultEmpty" class="empty-state">
+            아직 저장된 prediction 결과가 없습니다.
+          </div>
+
+          <div id="resultFields" class="field-list" style="display: none;">
+            <div class="field result-hero">
+              <span class="label">Risk Level</span>
+              <span id="predictionRiskLevel" class="value accent big-value">-</span>
+            </div>
+
+            <div class="field">
+              <span class="label">Risk Score</span>
+              <span id="predictionRiskScore" class="value">-</span>
+            </div>
+
+            <div class="field">
+              <span class="label">Reasons</span>
+              <ul id="predictionReasons" class="list"></ul>
+            </div>
+
+            <div class="field">
+              <span class="label">Action</span>
+              <div id="predictionActionText" class="long-text">-</div>
+            </div>
+
+            <div class="field result-meta">
+              <span class="label">Prediction Time</span>
+              <span id="predictionTimestamp" class="value">-</span>
+            </div>
+
+            <div class="field result-meta">
+              <span class="label">Target Sleep Date</span>
+              <span id="predictionTargetSleepDate" class="value">-</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
   </div>
 
-  <div class="box">
-    <h2>입력값</h2>
-    <p class="desc">
-      현재는 화면/응답 구조를 먼저 맞추는 단계입니다.
-      실제 Fitbit/센서 데이터 수집이 연결되면 입력값이 자동으로 채워지도록 구현해야합니다.
-    </p>
-
-    <div class="grid">
-      <div>
-        <label for="userId">user_id</label>
-        <input type="text" id="userId" value="user-01" />
-      </div>
-
-      <div>
-        <label for="avgHr">avg_hr_1h</label>
-        <input type="number" id="avgHr" value="82" />
-      </div>
-
-      <div>
-        <label for="stepsSum">steps_sum_1h</label>
-        <input type="number" id="stepsSum" value="210" />
-      </div>
-
-      <div>
-        <label for="caloriesSum">calories_sum_1h</label>
-        <input type="number" id="caloriesSum" value="58" />
-      </div>
-
-      <div>
-        <label for="avgTemp">avg_temp_1h</label>
-        <input type="number" id="avgTemp" value="24.5" step="0.1" />
-      </div>
-
-      <div>
-        <label for="avgHumidity">avg_humidity_1h</label>
-        <input type="number" id="avgHumidity" value="58" step="0.1" />
-      </div>
-
-      <div>
-        <label for="avgMq5">avg_mq5_index_1h</label>
-        <input type="number" id="avgMq5" value="0.42" step="0.01" />
-      </div>
-
-      <div>
-        <label for="recentAvgSleep">recent_avg_sleep_minutes</label>
-        <input type="number" id="recentAvgSleep" value="405" />
-      </div>
-    </div>
-
-    <button id="predictBtn">예측 요청</button>
-  </div>
-
-  <div class="box">
-    <h2>응답 결과</h2>
-    <p>현재는 하드코딩형태로 predictionService.js가 작동하고 있습니다. 개인 맞춤형으로 수정해야합니다.</p>
-    <pre id="resultBox">아직 요청하지 않았습니다.</pre>
-  </div>
-
-  <script src="/presleep.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/presleep.js"></script>
 </body>
 </html>

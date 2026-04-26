@@ -122,7 +122,33 @@ npm run dev
 
 ---
 
-## 8. 서비스 접속 확인
+## 8. UI 테스트용 더미 데이터 넣기
+
+프론트 화면을 빠르게 확인하려면 더미 데이터를 먼저 넣는 것이 편합니다.
+
+이 단계는 **현재 개발 및 UI 확인용 임시 절차**입니다.  
+즉, 지금은 화면 확인을 위해 `seed-demo`를 사용하지만,  
+이후 실제 센서 수집 / Fitbit 연동 / 예측 및 분석 파이프라인이 연결되면  
+운영 흐름에서는 더미 데이터를 넣지 않고 실제 적재 데이터로 화면을 확인하게 됩니다.
+
+아래 명령은 다음 테이블에 테스트용 데이터를 넣습니다.
+
+- `prediction_result`
+- `sleep_score_result`
+- `sensor_raw`
+- `post_analysis_result`
+
+```bash
+npm run seed-demo
+```
+
+테스트가 끝난 뒤 더미 데이터를 지우고 싶으면 아래 명령을 사용합니다.
+
+```bash
+npm run cleanup-demo
+```
+
+## 9. 서비스 접속 확인
 
 서비스가 정상적으로 실행되면 브라우저에서 로컬 서버에 접속할 수 있어야 합니다.
 
@@ -135,17 +161,126 @@ http://localhost:3000
 현재 기준으로 확인 가능한 페이지:
 
 - `/`
+- `/presleep.html`
 - `/postsleep.html`
 - `/result.html`
 - `/result/latest`
 
-추후 구현이 진행되면 아래 페이지도 추가될 수 있습니다.
-
-- `/presleep.html`
-
 ---
 
-## 9. 현재 기준 확인 가능한 항목
+## 10. DB 확인용 명령어
+
+아래 명령들은 프로젝트 루트에서 실행합니다.
+
+### 10-1. 주요 테스트 테이블 row 수 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+const tables = ['prediction_result', 'sleep_score_result', 'sensor_raw', 'post_analysis_result'];
+let pending = tables.length;
+for (const table of tables) {
+  db.get(`SELECT COUNT(*) AS count FROM ${table}`, [], (err, row) => {
+    if (err) console.error(table, err.message);
+    else console.log(`${table}: ${row.count}`);
+    pending -= 1;
+    if (pending === 0) db.close();
+  });
+}
+'@ | node -
+```
+
+### 10-2. 최신 prediction 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at
+  FROM prediction_result
+  ORDER BY created_at DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-3. 최근 7일 sleep score 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.all(`
+  SELECT sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at
+  FROM sleep_score_result
+  ORDER BY sleep_date DESC
+  LIMIT 7
+`, [], (err, rows) => {
+  if (err) console.error(err);
+  else console.table(rows);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-4. 최신 sensor_raw 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, ts, temperature, humidity, mq5_raw, mq5_index, created_at
+  FROM sensor_raw
+  ORDER BY ts DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-5. 최신 post analysis 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, sleep_date, causes_json, analysis_text, created_at
+  FROM post_analysis_result
+  ORDER BY created_at DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+### 10-6. 최신 user feedback 확인
+
+```powershell
+@'
+const db = require('./storage/db/db');
+db.get(`
+  SELECT id, sleep_date, satisfaction_score, created_at
+  FROM user_feedback
+  ORDER BY created_at DESC
+  LIMIT 1
+`, [], (err, row) => {
+  if (err) console.error(err);
+  else console.log(row);
+  db.close();
+});
+'@ | node -
+```
+
+## 11. 현재 기준 확인 가능한 항목
 
 현재 기준으로는 아래 정도까지 확인할 수 있습니다.
 
@@ -155,15 +290,17 @@ http://localhost:3000
 - DB 스키마 확인
 - DB 초기화 실행
 - Express 서버 실행
+- 더미 데이터 적재 / 정리
 - 로컬 접속 확인
 - Health check 응답 확인
+- Overview 화면의 summary / environment / sleep score trend 확인
+- Pre-sleep prediction 화면의 input / result 확인
 - Post-sleep feedback 화면 확인
 - feedback 입력 / 저장 / 수정 동작 확인
 - latest result 조회 확인
+- Result 화면의 feedback / prediction / sleep score / analysis 확인
 
----
-
-## 10. 추후 추가 예정
+## 12. 추후 추가 예정
 
 아래 항목은 구현이 진행되면 이 문서에 추가합니다.
 

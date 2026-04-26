@@ -1,0 +1,104 @@
+/* service/public/css/postsleep.css */
+
+.postsleep-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.postsleep-result-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.postsleep-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 12px;
+}
+
+.slider-field {
+  display: grid;
+  gap: 12px;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-value {
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+}
+
+.score-slider {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.score-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  background: #2d2723;
+  border-radius: 999px;
+}
+
+.score-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 0;
+  box-shadow: 0 6px 18px rgba(255, 78, 0, 0.28);
+}
+
+.score-slider::-moz-range-track {
+  height: 8px;
+  background: #2d2723;
+  border-radius: 999px;
+}
+
+.score-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 0;
+  box-shadow: 0 6px 18px rgba(255, 78, 0, 0.28);
+}
+
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#saveResultFields {
+  display: grid;
+  gap: 12px;
+}
+
+.result-hero .big-value {
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+@media (max-width: 1100px) {
+  .postsleep-grid {
+    grid-template-columns: 1fr;
+  }
+}

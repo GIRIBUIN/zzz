@@ -5,7 +5,9 @@
     "scripts": {
       "dev": "node service/server.js",
       "start": "node service/server.js",
-      "init-db": "node storage/db/init_db.js"
+      "init-db": "node storage/db/init_db.js",
+      "seed-demo": "node storage/db/seed_demo_data.js",
+      "cleanup-demo": "node storage/db/cleanup_demo_data.js"
     },
     "dependencies": {
       "dotenv": "^16.4.5",

@@ -1,81 +1,150 @@
+<!-- service/public/postsleep.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZZZ - Post Sleep Feedback</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 60px auto;
-      padding: 0 20px;
-      line-height: 1.6;
-    }
-    .box {
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-top: 12px;
-      margin-bottom: 6px;
-      font-weight: bold;
-    }
-    input {
-      width: 100%;
-      max-width: 320px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    button {
-      margin-top: 18px;
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-    }
-    pre {
-      background: #f7f7f7;
-      padding: 12px;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-      font-weight: bold;
-    }
-  </style>
+  <title>ZZZ - Post-sleep</title>
+  <link rel="stylesheet" href="/css/common.css" />
+  <link rel="stylesheet" href="/css/postsleep.css" />
 </head>
 <body>
-  <div class="box">
-    <h1>Post-sleep Feedback</h1>
-    <p>기상 후 수면 만족도를 입력하는 화면입니다.</p>
-    <p><a href="/">← index로 돌아가기</a></p>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">Z</div>
+        <div class="brand-text">
+          <h1>ZZZ</h1>
+          <p>Smart Sleep Dashboard</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Overview</span>
+        </a>
+        <a href="/presleep.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Prediction</span>
+        </a>
+        <a href="/postsleep.html" class="nav-link active">
+          <span class="nav-icon">●</span>
+          <span>Post-sleep</span>
+        </a>
+        <a href="/result.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Result</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>Post-sleep Feedback</h1>
+          <p>기상 후 수면 만족도를 입력하고 저장 결과를 확인합니다.</p>
+        </div>
+      </header>
+
+      <div id="feedbackStatus" class="status-bar">수면 만족도를 입력할 수 있습니다.</div>
+
+      <section class="postsleep-grid">
+        <article class="card">
+          <h2>Feedback Input</h2>
+          <p class="card-desc">현재 사용자 기준 기상 후 만족도를 기록합니다.</p>
+
+          <div class="field-list">
+            <div class="field">
+              <span class="label">Sleep Date</span>
+              <input id="sleepDate" class="input" type="date" />
+            </div>
+
+            <div class="field slider-field">
+              <div class="slider-header">
+                <span class="label">Satisfaction Score (0~100)</span>
+                <span id="scoreValue" class="slider-value">50</span>
+              </div>
+
+              <input
+                id="satisfactionScore"
+                class="score-slider"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+              />
+
+              <div class="slider-scale">
+                <span>0</span>
+                <span>50</span>
+                <span>100</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="postsleep-actions">
+            <button id="submitBtn" class="btn btn-primary">Save Feedback</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Input Policy</h2>
+          <p class="card-desc">현재 입력 정책은 아래와 같습니다.</p>
+
+          <div class="field-list">
+            <div class="field">
+              <span class="label">Future Date</span>
+              <span class="value">허용하지 않음</span>
+            </div>
+            <div class="field">
+              <span class="label">Same Date Re-entry</span>
+              <span class="value">같은 날짜 재입력 시 수정</span>
+            </div>
+            <div class="field">
+              <span class="label">No Change</span>
+              <span class="value">같은 값 재입력 시 변경 없음 처리</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="postsleep-result-grid">
+        <article class="card">
+          <h2>Save Result</h2>
+          <p class="card-desc">가장 최근 저장 요청 결과입니다.</p>
+
+          <div id="saveResultEmpty" class="empty-state">
+            아직 저장 요청을 실행하지 않았습니다.
+          </div>
+
+          <div id="saveResultFields" class="field-list" style="display: none;">
+            <div class="field result-hero">
+              <span class="label">Status</span>
+              <span id="saveAction" class="value accent big-value">-</span>
+            </div>
+
+            <div class="field">
+              <span class="label">Sleep Date</span>
+              <span id="savedSleepDate" class="value">-</span>
+            </div>
+
+            <div class="field">
+              <span class="label">Satisfaction Score</span>
+              <span id="savedSatisfactionScore" class="value">-</span>
+            </div>
+
+            <div class="field">
+              <span class="label">Saved At</span>
+              <span id="savedCreatedAt" class="value">-</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
   </div>
 
-  <div class="box">
-    <h2>만족도 입력</h2>
-
-    <label for="sleepDate">sleep_date</label>
-    <input type="date" id="sleepDate" />
-
-    <label for="satisfactionScore">satisfaction_score (0~100)</label>
-    <input type="number" id="satisfactionScore" min="0" max="100" />
-
-    <button id="submitBtn">저장 / 수정</button>
-  </div>
-
-  <div class="box">
-    <h2>응답 결과</h2>
-    <pre id="resultBox">아직 요청하지 않았습니다.</pre>
-  </div>
-
-  <script src="/postsleep.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/postsleep.js"></script>
 </body>
 </html>

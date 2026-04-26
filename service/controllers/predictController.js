@@ -1,8 +1,8 @@
-const { runPresleepPrediction } = require("../services/predictionService");
+const { executePresleepPrediction } = require("../services/predictionService");
 
-function postPresleepPrediction(req, res) {
+async function postPresleepPrediction(req, res) {
   try {
-    const result = runPresleepPrediction(req.body);
+    const result = await executePresleepPrediction(req.body);
 
     return res.status(200).json({
       status: "ok",

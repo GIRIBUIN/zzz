@@ -1,84 +1,187 @@
+<!-- service/public/index.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZZZ</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 60px auto;
-      padding: 0 20px;
-      line-height: 1.6;
-    }
-    .box {
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .link-list a {
-      display: inline-block;
-      margin-right: 12px;
-      margin-bottom: 10px;
-      text-decoration: none;
-      color: #2563eb;
-      font-weight: bold;
-    }
-    button {
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-    }
-    pre {
-      background: #f7f7f7;
-      padding: 12px;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-  </style>
+  <title>ZZZ - Overview</title>
+  <link rel="stylesheet" href="/css/common.css" />
+  <link rel="stylesheet" href="/css/overview.css" />
 </head>
 <body>
-  <div class="box">
-    <h1>💤 ZZZ</h1>
-    <p>ZZZ 로컬 서비스 허브 페이지입니다.</p>
-    <p>현재 구현된 기능과 상태를 여기서 확인할 수 있습니다.</p>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">Z</div>
+        <div class="brand-text">
+          <h1>ZZZ</h1>
+          <p>Smart Sleep Dashboard</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/" class="nav-link active">
+          <span class="nav-icon">●</span>
+          <span>Overview</span>
+        </a>
+        <a href="/presleep.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Prediction</span>
+        </a>
+        <a href="/postsleep.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Post-sleep</span>
+        </a>
+        <a href="/result.html" class="nav-link">
+          <span class="nav-icon">●</span>
+          <span>Result</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>Overview</h1>
+          <p>현재 사용자 기준 최신 수면 상태와 핵심 요약을 확인합니다.</p>
+        </div>
+      </header>
+
+      <div id="healthStatus" class="status-bar">상태를 확인하는 중...</div>
+
+      <section class="overview-grid-top">
+        <article class="card hero-card">
+          <h2>Latest Summary</h2>
+          <p class="card-desc">가장 최근 저장 결과 기준 핵심 요약입니다.</p>
+
+          <div class="hero-summary">
+            <div class="field hero-score">
+              <span class="label">Latest Sleep Score</span>
+              <span id="overviewLatestScore" class="value accent">아직 데이터 없음</span>
+            </div>
+
+            <div class="hero-mini-grid">
+              <div class="field">
+                <span class="label">Latest Feedback</span>
+                <span id="overviewLatestFeedback" class="value">아직 데이터 없음</span>
+              </div>
+              <div class="field">
+                <span class="label">Latest Prediction</span>
+                <span id="overviewLatestPrediction" class="value">아직 데이터 없음</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Quick Morning Check-in</h2>
+          <p class="card-desc">기상 후 만족도를 빠르게 입력할 수 있습니다.</p>
+
+          <div class="field-list">
+            <div class="field">
+              <span class="label">Sleep Date</span>
+              <input id="quickSleepDate" class="input" type="date" />
+            </div>
+
+            <div class="field slider-field">
+              <div class="slider-header">
+                <span class="label">Satisfaction Score (0~100)</span>
+                <span id="quickScoreValue" class="slider-value">50</span>
+              </div>
+
+              <input
+                id="quickSatisfactionScore"
+                class="score-slider"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+              />
+
+              <div class="slider-scale">
+                <span>0</span>
+                <span>50</span>
+                <span>100</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="overview-actions">
+            <button id="quickSubmitBtn" class="btn btn-primary">Submit</button>
+            <a href="/postsleep.html" class="btn btn-secondary">Go to Post-sleep</a>
+          </div>
+
+          <div id="quickFeedbackStatus" class="empty-state overview-note">
+            아직 입력하지 않았습니다.
+          </div>
+        </article>
+      </section>
+
+      <section class="overview-grid-bottom overview-grid-bottom-two">
+        <article class="card">
+          <h2>Room Environment</h2>
+          <p class="card-desc">센서 데이터가 연결되면 최신 환경 요약이 표시됩니다.</p>
+
+          <div class="field-list">
+            <div class="field">
+              <span class="label">Temperature</span>
+              <span id="overviewTemperature" class="value">아직 데이터 없음</span>
+            </div>
+            <div class="field">
+              <span class="label">Humidity</span>
+              <span id="overviewHumidity" class="value">아직 데이터 없음</span>
+            </div>
+            <div class="field">
+              <span class="label">Gas Index</span>
+              <span id="overviewGasIndex" class="value">아직 데이터 없음</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="overview-grid-bottom">
+        <article class="card">
+          <h2>Sleep Score Trend</h2>
+          <p class="card-desc">최근 저장된 수면 점수 흐름을 7일 기준으로 확인합니다.</p>
+
+          <div id="trendEmpty" class="empty-state">
+            아직 표시할 sleep score 데이터가 없습니다.
+          </div>
+
+          <div id="trendChartWrap" class="trend-card" style="display: none;">
+            <div class="trend-summary">
+              <div class="field">
+                <span class="label">Latest Score</span>
+                <span id="trendLatestScore" class="value accent">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Best Score</span>
+                <span id="trendBestScore" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">7-day Average</span>
+                <span id="trendAverageScore" class="value">-</span>
+              </div>
+            </div>
+
+            <div class="trend-chart-shell">
+              <svg
+                id="trendChart"
+                class="trend-chart"
+                viewBox="0 0 640 260"
+                role="img"
+                aria-label="최근 7일 수면 점수 그래프"
+              ></svg>
+            </div>
+
+            <div id="trendLabels" class="trend-labels"></div>
+          </div>
+        </article>
+      </section>
+    </main>
   </div>
 
-  <div class="box">
-    <h2>서비스 상태 확인</h2>
-    <p>아래 버튼을 누르면 <code>/health</code> 응답을 확인할 수 있습니다.</p>
-    <button id="healthBtn">Health Check</button>
-    <pre id="healthResult">아직 확인하지 않았습니다.</pre>
-  </div>
-
-  <div class="box">
-    <h2>현재 이동 가능한 화면</h2>
-    <div class="link-list">
-      <a href="/presleep.html">Pre-sleep Prediction 화면으로 이동</a>
-      <a href="/postsleep.html">Post-sleep Feedback 화면으로 이동</a>
-      <a href="/result.html">Latest Result 화면으로 이동</a>
-    </div>
-    <p>추후 여기에 더 많은 결과 화면을 추가할 수 있습니다.</p>
-  </div>
-
-  <script>
-    const healthBtn = document.getElementById("healthBtn");
-    const healthResult = document.getElementById("healthResult");
-
-    healthBtn.addEventListener("click", async () => {
-      healthResult.textContent = "확인 중...";
-      try {
-        const response = await fetch("/health");
-        const data = await response.json();
-        healthResult.textContent = JSON.stringify(data, null, 2);
-      } catch (error) {
-        healthResult.textContent = `오류: ${error.message}`;
-      }
-    });
-  </script>
+  <script src="/js/common.js"></script>
+  <script src="/js/overview.js"></script>
 </body>
 </html>

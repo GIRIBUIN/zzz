@@ -1,4 +1,22 @@
-// service/services/predictionService.js
+const db = require("../../storage/db/db");
+
+// Predictor contract:
+// input: {
+//   avg_hr_1h,
+//   steps_sum_1h,
+//   avg_temp_1h,
+//   avg_humidity_1h,
+//   avg_mq5_index_1h,
+//   target_sleep_date
+// }
+// output: {
+//   risk_level,
+//   risk_score,
+//   reasons,
+//   action_text,
+//   message?,
+//   received?
+// }
 function runPresleepPrediction(payload) {
   const avgHr = Number(payload?.avg_hr_1h ?? 0);
   const steps = Number(payload?.steps_sum_1h ?? 0);
@@ -64,6 +82,74 @@ function runPresleepPrediction(payload) {
   };
 }
 
+function getTargetSleepDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function savePredictionResult(payload, predictionResult) {
+  return new Promise((resolve, reject) => {
+    const predictionTs = new Date().toISOString();
+    const targetSleepDate = payload?.target_sleep_date || getTargetSleepDate();
+    const reasonsJson = JSON.stringify(predictionResult.reasons || []);
+    const snapshotJson = JSON.stringify(payload || {});
+
+    const insertQuery = `
+      INSERT INTO prediction_result (
+        prediction_ts,
+        target_sleep_date,
+        risk_level,
+        risk_score,
+        reasons_json,
+        action_text,
+        feature_snapshot_json,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.run(
+      insertQuery,
+      [
+        predictionTs,
+        targetSleepDate,
+        predictionResult.risk_level,
+        predictionResult.risk_score,
+        reasonsJson,
+        predictionResult.action_text,
+        snapshotJson,
+        predictionTs
+      ],
+      function insertPrediction(insertErr) {
+        if (insertErr) {
+          return reject(insertErr);
+        }
+
+        return resolve({
+          id: this.lastID,
+          prediction_ts: predictionTs,
+          target_sleep_date: targetSleepDate,
+          risk_level: predictionResult.risk_level,
+          risk_score: predictionResult.risk_score,
+          reasons: predictionResult.reasons || [],
+          reasons_json: reasonsJson,
+          action_text: predictionResult.action_text,
+          feature_snapshot_json: snapshotJson,
+          created_at: predictionTs,
+          message: predictionResult.message,
+          received: predictionResult.received || payload || {}
+        });
+      }
+    );
+  });
+}
+
+async function executePresleepPrediction(payload, predictor = runPresleepPrediction) {
+  const predictionResult = predictor(payload);
+  return savePredictionResult(payload, predictionResult);
+}
+
 module.exports = {
-  runPresleepPrediction
+  runPresleepPrediction,
+  savePredictionResult,
+  executePresleepPrediction
 };

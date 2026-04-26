@@ -188,44 +188,27 @@ async function loadLatestPrediction() {
 }
 
 async function requestPrediction() {
-  predictionStatus.textContent = "prediction을 다시 계산하는 중...";
-  predictionStatus.style.color = "#727477";
+  predictionStatus.textContent = "prediction을 계산하는 중...";
 
   try {
-    const response = await fetch("/result/latest");
-    const result = await response.json();
-
-    if (result.status !== "ok") {
-      throw new Error(result.message || "Failed to load latest result");
-    }
-
-    const latestPrediction = result.data?.latest_prediction || null;
-    const snapshot = parseSnapshot(latestPrediction?.feature_snapshot_json);
-
-    if (!snapshot) {
-      throw new Error("feature snapshot이 없어 prediction을 다시 실행할 수 없습니다.");
-    }
-
     const predictResponse = await fetch("/predict/presleep", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(snapshot)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})  // 빈 body — 서버가 알아서 수집
     });
 
     const predictResult = await predictResponse.json();
-
     if (predictResult.status !== "ok") {
       throw new Error(predictResult.message || "Prediction failed");
     }
 
+    const snapshot = JSON.parse(predictResult.data?.feature_snapshot_json || "{}");
     renderPredictionInputs(snapshot);
     renderPredictionResult(predictResult.data || null);
 
-    predictionStatus.textContent = "prediction을 다시 계산해 표시했습니다.";
+    predictionStatus.textContent = "prediction 계산 완료.";
   } catch (error) {
-    predictionStatus.textContent = `prediction 재계산 실패: ${error.message}`;
+    predictionStatus.textContent = `prediction 실패: ${error.message}`;
     predictionStatus.style.color = "#ff4e00";
   }
 }

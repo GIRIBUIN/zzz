@@ -13,6 +13,7 @@
 const {
   fetchHeartIntraday,
   fetchStepsIntraday,
+  fetchCaloriesIntraday,
   fetchSleep,
 } = require('./fitbit_client');
 
@@ -109,6 +110,33 @@ function saveStepsRaw(stepsJson, minutes = null) {
   console.log(`[collect_fitbit] 걸음수 ${series.length}건 저장`);
 }
 
+function saveCaloriesRaw(caloriesJson, minutes = null) {
+  let series = caloriesJson?.['activities-calories-intraday']?.dataset ?? [];
+  if (series.length === 0) {
+    console.warn('[collect_fitbit] 칼로리 데이터 없음');
+    return;
+  }
+  if (minutes) series = sliceLastMinutes(series, minutes);
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO fitbit_calories (ts, calories, created_at)
+    VALUES (?, ?, ?)
+  `);
+
+  const now = nowIso();
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    for (const point of series) {
+      stmt.run(toIsoTs(point.time), point.value, now);
+    }
+    db.run('COMMIT');
+  });
+
+  stmt.finalize();
+  console.log(`[collect_fitbit] 칼로리 ${series.length}건 저장`);
+}
+
 function saveSleepRaw(sleepJson) {
   const mainSleep = (sleepJson?.sleep ?? []).find(s => s.isMainSleep);
   if (!mainSleep) {
@@ -150,13 +178,15 @@ function saveSleepRaw(sleepJson) {
 async function collectPresleep() {
   console.log('[collect_fitbit] 취침 전 수집 시작');
 
-  const [heartJson, stepsJson] = await Promise.all([
+  const [heartJson, stepsJson, caloriesJson] = await Promise.all([
     fetchHeartIntraday(),
     fetchStepsIntraday(),
+    fetchCaloriesIntraday(),
   ]);
 
   saveHeartRaw(heartJson, 60);
   saveStepsRaw(stepsJson, 60);
+  saveCaloriesRaw(caloriesJson, 60);
 
   console.log('[collect_fitbit] 취침 전 수집 완료');
 }
@@ -170,14 +200,16 @@ async function collectPresleep() {
 async function collectPostsleep() {
   console.log('[collect_fitbit] 기상 후 수집 시작');
 
-  const [heartJson, stepsJson, sleepJson] = await Promise.all([
+  const [heartJson, stepsJson, caloriesJson, sleepJson] = await Promise.all([
     fetchHeartIntraday(),
     fetchStepsIntraday(),
+    fetchCaloriesIntraday(),
     fetchSleep(),
   ]);
 
   saveHeartRaw(heartJson);
   saveStepsRaw(stepsJson);
+  saveCaloriesRaw(caloriesJson);
   saveSleepRaw(sleepJson);
 
   console.log('[collect_fitbit] 기상 후 수집 완료');

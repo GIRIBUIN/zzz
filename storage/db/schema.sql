@@ -47,7 +47,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_steps_ts
 ON fitbit_steps(ts);
 
 -- =========================================================
--- 4. Fitbit main sleep result
+-- 4. Fitbit calories intraday
+-- Fitbit 칼로리 시계열 저장
+-- =========================================================
+CREATE TABLE IF NOT EXISTS fitbit_calories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,                     -- ISO 8601 timestamp
+    calories REAL NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_calories_ts
+ON fitbit_calories(ts);
+
+-- =========================================================
+-- 5. Fitbit main sleep result
 -- 하루 대표 수면(main sleep) 1개 저장
 -- isMainSleep == true 를 우선 사용(밤 샌날, 낮잠만 잔 날 있을 수 있음)
 -- 예외 시 가장 긴 sleep log 사용 가능
@@ -71,7 +85,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_sleep_date
 ON fitbit_sleep(sleep_date);
 
 -- =========================================================
--- 5. User feedback
+-- 6. User feedback
 -- 사용자 주관 만족도 입력
 -- 현재는 점수만 필수
 -- =========================================================
@@ -86,7 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_user_feedback_date
 ON user_feedback(sleep_date);
 
 -- =========================================================
--- 6. Pre-sleep prediction result
+-- 7. Pre-sleep prediction result
 -- 취침 전 예측 결과 저장
 -- 하루 여러 번 실행될 수 있으므로 prediction_ts 기준으로 기록
 -- =========================================================
@@ -109,7 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_prediction_result_target_date
 ON prediction_result(target_sleep_date);
 
 -- =========================================================
--- 7. Sleep score result
+-- 8. Sleep score result
 -- 기상 후 계산한 Sleep Score 저장
 -- 하루 대표 수면 기준
 -- =========================================================
@@ -127,7 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_sleep_score_result_date
 ON sleep_score_result(sleep_date);
 
 -- =========================================================
--- 8. Post-sleep analysis result
+-- 9. Post-sleep analysis result
 -- 기상 후 원인 분석 결과 저장
 -- 원인은 JSON 형태로 확장 가능하게 저장
 -- =========================================================
@@ -143,7 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_post_analysis_result_date
 ON post_analysis_result(sleep_date);
 
 -- =========================================================
--- 9. Pattern profile (A)
+-- 10. Pattern profile (A)
 -- 누적 패턴 데이터 저장
 -- 최신값만 덮어쓰지 않고, 갱신 시마다 이력을 남김
 -- =========================================================

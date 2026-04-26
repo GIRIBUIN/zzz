@@ -26,6 +26,12 @@ function buildFeatureSnapshot() {
       FROM fitbit_steps
       WHERE ts >= ?
     `;
+
+    const caloriesQuery = `
+      SELECT SUM(calories) as calories_sum_1h
+      FROM fitbit_calories
+      WHERE ts >= ?
+    `;
  
     const sensorQuery = `
       SELECT AVG(temperature) as avg_temp_1h,
@@ -45,6 +51,7 @@ function buildFeatureSnapshot() {
  
     let heart = {};
     let steps = {};
+    let calories = {};
     let sensor = {};
     let sleep = {};
     let done = 0;
@@ -52,12 +59,13 @@ function buildFeatureSnapshot() {
  
     function tryResolve() {
       done += 1;
-      if (done === 4) {
+      if (done === 5) {
         if (errors.length > 0) return reject(errors[0]);
         resolve({
           user_id: "user-01",
           avg_hr_1h:               heart.avg_hr_1h   ?? null,
           steps_sum_1h:            steps.steps_sum_1h ?? null,
+          calories_sum_1h:         calories.calories_sum_1h ?? null,
           avg_temp_1h:             sensor.avg_temp_1h     ?? null,
           avg_humidity_1h:         sensor.avg_humidity_1h ?? null,
           avg_mq5_index_1h:        sensor.avg_mq5_index_1h ?? null,
@@ -69,6 +77,7 @@ function buildFeatureSnapshot() {
  
     db.get(heartQuery,  [oneHourAgo], (err, row) => { if (err) errors.push(err); else heart  = row || {}; tryResolve(); });
     db.get(stepsQuery,  [oneHourAgo], (err, row) => { if (err) errors.push(err); else steps  = row || {}; tryResolve(); });
+    db.get(caloriesQuery, [oneHourAgo], (err, row) => { if (err) errors.push(err); else calories = row || {}; tryResolve(); });
     db.get(sensorQuery, [oneHourAgo], (err, row) => { if (err) errors.push(err); else sensor = row || {}; tryResolve(); });
     db.get(sleepQuery,  [today],      (err, row) => { if (err) errors.push(err); else sleep  = row || {}; tryResolve(); });
   });

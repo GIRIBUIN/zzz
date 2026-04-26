@@ -151,6 +151,13 @@ function fetchStepsIntraday() {
 }
 
 /**
+ * 칼로리 시계열 (1분 단위, 오늘)
+ */
+function fetchCaloriesIntraday() {
+  return fitbitGet(`/1/user/${USER_ID}/activities/calories/date/today/1d/1min.json`);
+}
+
+/**
  * 수면 요약 + 수면 단계 (오늘)
  */
 function fetchSleep() {
@@ -170,6 +177,7 @@ function fetchActivitySummary() {
 module.exports = {
   fetchHeartIntraday,
   fetchStepsIntraday,
+  fetchCaloriesIntraday,
   fetchSleep,
   fetchActivitySummary,
   refreshAccessToken,

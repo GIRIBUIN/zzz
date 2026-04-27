@@ -54,11 +54,10 @@ async function buildPresleepFeatures(sinceIso) {
          AND pr.risk_level IN ('MEDIUM', 'HIGH')`,
       [RECENT_N_DAYS]
     ),
-    // fitbit_calories table added by storage layer — catch handles missing table gracefully
     dbGet(
       `SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h FROM fitbit_calories WHERE ts >= ?`,
       [sinceIso]
-    ).catch(() => null)
+    ).catch(() => null)  // defensive: returns null if table not yet populated
   ]);
 
   const sleepMinutes = sleepRows.map(r => Number(r.minutes_asleep) || 0);
@@ -76,17 +75,20 @@ async function buildPresleepFeatures(sinceIso) {
   }
 
   return {
+    user_id:                "user-01",
+    target_sleep_date:      new Date().toISOString().slice(0, 10),
     avg_hr_1h:              heartRow?.avg_hr_1h  ?? null,
     max_hr_1h:              heartRow?.max_hr_1h  ?? null,
     steps_sum_1h:           stepsRow?.steps_sum_1h ?? 0,
+    calories_sum_1h:        caloriesRow?.calories_sum_1h ?? null,
     avg_temp_1h:            sensorRow?.avg_temp_1h       ?? null,
     avg_humidity_1h:        sensorRow?.avg_humidity_1h   ?? null,
     avg_mq5_index_1h:       sensorRow?.avg_mq5_index_1h  ?? null,
     max_mq5_raw_1h:         sensorRow?.max_mq5_raw_1h    ?? null,
     recent_n_sleep_avg:     recentSleepAvg,
-    sleep_irregularity:     sleepIrregularity,         // std dev in minutes; null if < 3 days data
-    recent_low_sat_high_risk: lowSatRow?.cnt ?? 0,     // days in last N with risk + low satisfaction
-    calories_sum_1h:          caloriesRow?.calories_sum_1h ?? null,  // null if fitbit_calories table absent
+    recent_avg_sleep_minutes: recentSleepAvg,            // 서비스 buildFeatureSnapshot 호환 별칭
+    sleep_irregularity:     sleepIrregularity,
+    recent_low_sat_high_risk: lowSatRow?.cnt ?? 0,
     pattern: latestPattern ?? null
   };
 }

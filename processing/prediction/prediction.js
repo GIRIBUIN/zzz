@@ -55,4 +55,11 @@ function computePresleepRisk(features, patternProfile) {
   return { risk_level, risk_score, reasons, action_text, hr_baseline: baseHr };
 }
 
-module.exports = { computePresleepRisk };
+// 서비스 predictor 호환 래퍼
+// executePresleepPrediction(payload, presleepPredictor) 형태로 사용
+// payload.pattern 이 있으면 patternProfile 로 자동 추출 (buildPresleepFeatures 반환값 그대로 전달 가능)
+function presleepPredictor(payload) {
+  return computePresleepRisk(payload, payload?.pattern ?? null);
+}
+
+module.exports = { computePresleepRisk, presleepPredictor };

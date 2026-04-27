@@ -1,5 +1,7 @@
 const db = require("../../storage/db/db");
 const { presleepPredictor } = require("../../processing/prediction/prediction");
+const { callSlm } = require("../../processing/slm/slm_client");
+const { buildPresleepPrompt } = require("../../processing/slm/prompt_builder");
 
 function getTargetSleepDate() {
   return new Date().toISOString().slice(0, 10);
@@ -64,6 +66,14 @@ function savePredictionResult(payload, predictionResult) {
 
 async function executePresleepPrediction(payload, predictor = presleepPredictor) {
   const predictionResult = predictor(payload);
+
+  const patternProfile = payload?.pattern ?? null;
+  const prompt = buildPresleepPrompt(predictionResult, payload, patternProfile);
+  const slmText = await callSlm(prompt);
+  predictionResult.action_text = slmText
+    ? `[slm] ${slmText}`
+    : `[rule] ${predictionResult.action_text}`;
+
   return savePredictionResult(payload, predictionResult);
 }
 

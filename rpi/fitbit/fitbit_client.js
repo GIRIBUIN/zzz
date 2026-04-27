@@ -24,6 +24,8 @@ function loadEnv() {
 
 loadEnv();
 
+let refreshPromise = null;
+
 /**
  * Refresh Token으로 새 Access Token 발급
  * 성공하면 .env 파일도 자동으로 업데이트
@@ -79,6 +81,16 @@ function refreshAccessToken() {
   });
 }
 
+function refreshAccessTokenOnce() {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
 /**
  * .env 파일에서 토큰 두 줄만 교체
  */
@@ -121,7 +133,7 @@ async function fitbitGet(apiPath, retry = true) {
   // 401: 토큰 만료 → 갱신 후 재시도 (1회만)
   if (data.statusCode === 401 && retry) {
     console.log('[fitbit_client] 401 감지 → 토큰 갱신 시도');
-    await refreshAccessToken();
+    await refreshAccessTokenOnce();
     return fitbitGet(apiPath, false);
   }
 

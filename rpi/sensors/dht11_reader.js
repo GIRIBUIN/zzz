@@ -1,8 +1,22 @@
-const sensor = require("node-dht-sensor");
-
 const DHT_SENSOR_TYPE = Number(process.env.DHT_SENSOR_TYPE || 11); // DHT11 = 11, DHT22 = 22
 const DHT_GPIO_PIN = Number(process.env.DHT_GPIO_PIN || 4); // BCM GPIO4, physical pin 7
-const USE_MOCK_SENSOR = process.env.USE_MOCK_SENSOR === "true";
+const USE_MOCK_SENSOR = String(process.env.USE_MOCK_SENSOR).toLowerCase() === "true";
+
+let dhtSensorModule = null;
+
+function getDhtSensorModule() {
+  if (!dhtSensorModule) {
+    try {
+      dhtSensorModule = require("node-dht-sensor");
+    } catch (err) {
+      throw new Error(
+        "node-dht-sensor is required for real DHT reads. Set USE_MOCK_SENSOR=true for simulation mode."
+      );
+    }
+  }
+
+  return dhtSensorModule;
+}
 
 function readMockDht11() {
   return {
@@ -19,6 +33,8 @@ function readDht11() {
   }
 
   return new Promise((resolve, reject) => {
+    const sensor = getDhtSensorModule();
+
     sensor.read(DHT_SENSOR_TYPE, DHT_GPIO_PIN, (err, temperature, humidity) => {
       if (err) {
         reject(new Error(`DHT read failed: ${err.message || err}`));

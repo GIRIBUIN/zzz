@@ -1,10 +1,24 @@
-const i2c = require("i2c-bus");
-
-const USE_MOCK_SENSOR = process.env.USE_MOCK_SENSOR === "true";
+const USE_MOCK_SENSOR = String(process.env.USE_MOCK_SENSOR).toLowerCase() === "true";
 
 const I2C_BUS_NUMBER = Number(process.env.I2C_BUS_NUMBER || 1);
 const MQ5_ADC_ADDRESS = Number(process.env.MQ5_ADC_ADDRESS || "0x48"); // PCF8591 default
 const MQ5_ADC_CHANNEL = Number(process.env.MQ5_ADC_CHANNEL || 0); // AIN0
+
+let i2cModule = null;
+
+function getI2cModule() {
+  if (!i2cModule) {
+    try {
+      i2cModule = require("i2c-bus");
+    } catch (err) {
+      throw new Error(
+        "i2c-bus is required for real MQ-5 reads. Set USE_MOCK_SENSOR=true for simulation mode."
+      );
+    }
+  }
+
+  return i2cModule;
+}
 
 function readMockMq5() {
   const raw = Math.floor(80 + Math.random() * 80);
@@ -22,6 +36,7 @@ function readPcf8591Channel(channel = 0) {
     throw new Error("PCF8591 channel must be between 0 and 3");
   }
 
+  const i2c = getI2cModule();
   const bus = i2c.openSync(I2C_BUS_NUMBER);
 
   try {

@@ -1,3 +1,11 @@
+const path = require("path");
+
+try {
+  require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
+} catch (err) {
+  // Allow sensor mock mode to run before npm dependencies are installed.
+}
+
 const { readDht11 } = require("./dht11_reader");
 const { readMq5 } = require("./mq5_reader");
 
@@ -17,12 +25,15 @@ async function collectSensors() {
     humidity: null,
     mq5_raw: null,
     mq5_index: null,
+    source: null,
+    sources: {},
     errors: [],
   };
 
   if (dhtResult.status === "fulfilled") {
     data.temperature = dhtResult.value.temperature;
     data.humidity = dhtResult.value.humidity;
+    data.sources.dht11 = dhtResult.value.source;
   } else {
     data.errors.push({
       sensor: "dht11",
@@ -33,12 +44,16 @@ async function collectSensors() {
   if (mq5Result.status === "fulfilled") {
     data.mq5_raw = mq5Result.value.mq5_raw;
     data.mq5_index = mq5Result.value.mq5_index;
+    data.sources.mq5 = mq5Result.value.source;
   } else {
     data.errors.push({
       sensor: "mq5",
       message: mq5Result.reason.message || String(mq5Result.reason),
     });
   }
+
+  const sourceValues = Object.values(data.sources).filter(Boolean);
+  data.source = sourceValues.length > 0 ? sourceValues.join("+") : "unknown";
 
   return data;
 }

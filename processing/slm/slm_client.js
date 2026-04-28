@@ -12,11 +12,20 @@ async function callSlm(prompt) {
       body: JSON.stringify({ model: SLM_MODEL, prompt, stream: false }),
       signal: controller.signal
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => "<unable to read body>");
+      console.error(`[slm_client] ERROR HTTP ${res.status} ${res.statusText} - ${body}`);
+      return null;
+    }
     const json = await res.json();
     const text = (json?.response ?? "").trim();
-    return text.length > 0 ? text : null;
-  } catch (_) {
+    if (text.length === 0) {
+      console.error(`[slm_client] ERROR empty response JSON: ${JSON.stringify(json)}`);
+      return null;
+    }
+    return text;
+  } catch (err) {
+    console.error("[slm_client] ERROR]", err);
     return null;
   } finally {
     clearTimeout(timer);

@@ -41,25 +41,25 @@ async function getLatestResult() {
     getLatestRow(
       `SELECT id, sleep_date, satisfaction_score, created_at
        FROM user_feedback
-       ORDER BY created_at DESC
+       ORDER BY id DESC
        LIMIT 1`
     ),
     getLatestRow(
       `SELECT id, prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at
        FROM prediction_result
-       ORDER BY created_at DESC
+       ORDER BY id DESC
        LIMIT 1`
     ),
     getLatestRow(
       `SELECT id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at
        FROM sleep_score_result
-       ORDER BY created_at DESC
+       ORDER BY id DESC
        LIMIT 1`
     ),
     getLatestRow(
       `SELECT id, sleep_date, causes_json, analysis_text, created_at
        FROM post_analysis_result
-       ORDER BY created_at DESC
+       ORDER BY id DESC
        LIMIT 1`
     ),
     getLatestRow(

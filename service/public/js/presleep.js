@@ -191,10 +191,15 @@ async function requestPrediction() {
   predictionStatus.textContent = "prediction을 계산하는 중...";
 
   try {
-    const predictResponse = await fetch("/predict/presleep", {
+    const skipCollect = document.getElementById("skipCollect").checked;
+    const url = skipCollect 
+      ? "/predict/presleep?skip_collect=true"
+      : "/predict/presleep";
+
+    const predictResponse = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})  // 빈 body — 서버가 알아서 수집
+      body: JSON.stringify({})
     });
 
     const predictResult = await predictResponse.json();

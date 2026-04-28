@@ -88,6 +88,7 @@ function _analysisColdStart(analysisResult, scoreResult, satisfactionScore, slee
   const lines = [
     "당신은 수면 건강 코치입니다. 사용자의 수면 패턴 데이터가 아직 충분히 쌓이지 않은 상태입니다.",
     "아래 오늘의 수면 데이터를 직접 해석하여, 수면의 질을 평가하고 개선 방향을 3~4문장으로 작성하세요.",
+    "주관 만족도 숫자를 반대로 해석하지 말고, 낮은 점수는 낮은 만족도로 명확히 반영하세요.",
     "번호나 목록 없이 문장으로만 작성하세요.",
     ""
   ];
@@ -103,6 +104,8 @@ function _analysisColdStart(analysisResult, scoreResult, satisfactionScore, slee
     try { return JSON.parse(analysisResult.causes_json); } catch (_) { return []; }
   })();
   if (causes.length > 0) lines.push(`감지된 요인: ${causes.map(c => c.label).join(", ")}`);
+  if (analysisResult.analysis_text) lines.push(`규칙 기반 분석: ${analysisResult.analysis_text}`);
+  if (analysisResult.score_gap_note) lines.push(`점수-만족도 해석: ${analysisResult.score_gap_note}`);
 
   lines.push("", "피드백:");
   return lines.join("\n");
@@ -118,6 +121,7 @@ function _analysisStable(analysisResult, scoreResult, satisfactionScore, sleepRo
   const lines = [
     "당신은 수면 건강 코치입니다. 아래 기상 후 수면 분석 결과와 실제 수면 데이터를 바탕으로 2~3문장의 자연스러운 한국어 피드백을 작성하세요.",
     "피드백은 원인을 설명하고 다음 밤을 위한 실용적인 개선 방향을 포함해야 합니다. 번호나 목록 없이 문장으로만 작성하세요.",
+    "주관 만족도 숫자를 반대로 해석하지 말고, 낮은 점수는 낮은 만족도로 명확히 반영하세요.",
     "",
     causes.length > 0
       ? `주요 원인: ${causes.map(c => c.label).join(", ")}`
@@ -126,6 +130,8 @@ function _analysisStable(analysisResult, scoreResult, satisfactionScore, sleepRo
 
   if (scoreResult?.total_score != null) lines.push(`수면 점수: ${scoreResult.total_score}점`);
   if (satisfactionScore != null)        lines.push(`주관 만족도: ${satisfactionScore}점`);
+  if (analysisResult.analysis_text)     lines.push(`규칙 기반 분석: ${analysisResult.analysis_text}`);
+  if (analysisResult.score_gap_note)    lines.push(`점수-만족도 해석: ${analysisResult.score_gap_note}`);
 
   const sleepLines = [];
   if (s.minutes_asleep != null) sleepLines.push(`총 수면 ${Math.round(s.minutes_asleep)}분`);

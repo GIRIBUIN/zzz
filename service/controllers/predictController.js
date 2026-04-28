@@ -48,6 +48,14 @@ async function postPresleepPrediction(req, res) {
  
     // 3. 예측 실행 + DB 저장
     const result = await executePresleepPrediction(snapshot);
+    console.log("[predictController] prediction result:", {
+      id: result.id,
+      target_sleep_date: result.target_sleep_date,
+      risk_level: result.risk_level,
+      risk_score: result.risk_score,
+      reasons_count: result.reasons?.length || 0,
+      action_source: result.action_text?.startsWith("[slm]") ? "slm" : "rule"
+    });
  
     return res.status(200).json({
       status: "ok",

@@ -1,380 +1,300 @@
+/**
+ * 실행: node storage/db/seed_demo_data.js
+ * 시연용 7일 데이터 시딩
+ *
+ * D-6 ~ D-1: 과거 수면 결과, 만족도, 사후 분석, 패턴 학습 데이터 포함
+ * D0: 오늘 취침 전 예측 시연용 최근 1시간 Fitbit/RPi 데이터만 포함
+ */
+
 const path = require("path");
 const dotenv = require("dotenv");
-const sqlite3 = require("sqlite3").verbose();
-
 dotenv.config({ path: path.join(__dirname, "..", "..", ".env") });
 
 const db = require("./db");
-const sourceDbPath = path.join(__dirname, "zzz-seed.db");
-const sensorCsvPath = path.join(__dirname, "sensor_sequence_1hour_5sec.csv");
-const DEMO_FITBIT_CREATED_AT = "demo-seed-fitbit";
-const DEMO_SENSOR_CREATED_AT = "demo-seed-sensor";
+const { computePresleepRisk } = require("../../processing/prediction/prediction");
+const { updatePatternStage1, updatePatternStage2 } = require("../../processing/pattern/pattern_update");
+const { analyzePostSleep } = require("../../processing/analysis/post_analysis");
+
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DEMO_TAG = "demo-seed";
 
-function run(query, params = []) {
+const SCENARIOS = [
+  { dayOffset: -6, hr: 74, steps: 180, calories: 95, temp: 24.5, humidity: 18, mq5: 0.31,
+    sleepMin: 430, deepMin: 85, remMin: 95, lightMin: 250, awakeMin: 15,
+    satisfaction: 78, sleepScore: 82 },
+  { dayOffset: -5, hr: 76, steps: 250, calories: 120, temp: 24.8, humidity: 19, mq5: 0.35,
+    sleepMin: 415, deepMin: 80, remMin: 90, lightMin: 245, awakeMin: 18,
+    satisfaction: 72, sleepScore: 79 },
+  { dayOffset: -4, hr: 83, steps: 450, calories: 230, temp: 26.3, humidity: 20, mq5: 0.58,
+    sleepMin: 350, deepMin: 45, remMin: 55, lightMin: 250, awakeMin: 40,
+    satisfaction: 38, sleepScore: 52 },
+  { dayOffset: -3, hr: 86, steps: 520, calories: 260, temp: 26.8, humidity: 21, mq5: 0.63,
+    sleepMin: 310, deepMin: 35, remMin: 45, lightMin: 230, awakeMin: 50,
+    satisfaction: 32, sleepScore: 45 },
+  { dayOffset: -2, hr: 79, steps: 320, calories: 185, temp: 25.6, humidity: 19, mq5: 0.50,
+    sleepMin: 385, deepMin: 65, remMin: 75, lightMin: 245, awakeMin: 28,
+    satisfaction: 58, sleepScore: 70 },
+  { dayOffset: -1, hr: 75, steps: 190, calories: 105, temp: 24.9, humidity: 18, mq5: 0.38,
+    sleepMin: 405, deepMin: 78, remMin: 88, lightMin: 239, awakeMin: 20,
+    satisfaction: 68, sleepScore: 76 },
+  { dayOffset: 0, hr: 78.8, steps: 818, calories: 240, temp: 25.9, humidity: 19, mq5: 0.552,
+    sleepMin: null }
+];
+
+function dbRun(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(query, params, function onRun(err) {
+    db.run(sql, params, function onRun(err) {
       if (err) return reject(err);
-      resolve(this);
+      resolve({ lastID: this.lastID, changes: this.changes });
     });
   });
 }
 
-function all(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(query, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+function dateStr(dayOffset) {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + dayOffset);
+  return d.toISOString().slice(0, 10);
 }
 
-function allFromSource(sourceDb, query, params = []) {
-  return new Promise((resolve, reject) => {
-    sourceDb.all(query, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+function utcTs(dayOffset, utcHour, utcMinute = 0, utcSecond = 0) {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + dayOffset);
+  d.setUTCHours(utcHour, utcMinute, utcSecond, 0);
+  return d.toISOString().replace("Z", "");
 }
 
-function buildRecentDates(days) {
-  const dates = [];
-
-  for (let offset = days - 1; offset >= 0; offset -= 1) {
-    const date = new Date();
-    date.setUTCHours(0, 0, 0, 0);
-    date.setUTCDate(date.getUTCDate() - offset);
-    dates.push(date);
-  }
-
-  return dates;
-}
-
-async function seedSleepScores(dates) {
-  for (let index = 0; index < dates.length; index += 1) {
-    const date = dates[index];
-    const sleepDate = date.toISOString().slice(0, 10);
-    const createdAt = new Date(date);
-    createdAt.setUTCHours(22, 15, 0, 0);
-
-    const timeAsleepScore = 31 + index * 2.4;
-    const deepRemScore = 14 + (index % 4) * 2.2;
-    const restorationScore = 12 + ((index + 2) % 3) * 3.3;
-    const totalScore = Number(
-      Math.min(timeAsleepScore + deepRemScore + restorationScore, 95).toFixed(1)
-    );
-
-    await run(`DELETE FROM sleep_score_result WHERE sleep_date = ?`, [sleepDate]);
-    await run(
-      `INSERT INTO sleep_score_result (
-        sleep_date,
-        time_asleep_score,
-        deep_rem_score,
-        restoration_score,
-        total_score,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        sleepDate,
-        Number(timeAsleepScore.toFixed(1)),
-        Number(deepRemScore.toFixed(1)),
-        Number(restorationScore.toFixed(1)),
-        totalScore,
-        createdAt.toISOString()
-      ]
-    );
-  }
-}
-
-function readSensorCsvRows() {
-  const fs = require("fs");
-  const content = fs.readFileSync(sensorCsvPath, "utf-8").trim();
-  const [, ...lines] = content.split(/\r?\n/);
-
-  return lines
-    .map((line) => {
-      const [sourceTs, temperature, humidity, mq5Raw, mq5Index] = line.split(",");
-      return {
-        sourceTs,
-        temperature: Number(temperature),
-        humidity: Number(humidity),
-        mq5_raw: Number(mq5Raw),
-        mq5_index: Number(mq5Index)
-      };
-    })
-    .filter((row) => row.sourceTs && Number.isFinite(row.temperature));
-}
-
-function buildRecentSequenceTimestamps(sourceRows) {
-  const firstSourceTs = new Date(sourceRows[0].sourceTs).getTime();
-  const lastSourceTs = new Date(sourceRows[sourceRows.length - 1].sourceTs).getTime();
-  const latest = new Date(Date.now() + KST_OFFSET_MS);
-  latest.setUTCMilliseconds(0);
-  const start = latest.getTime() - (lastSourceTs - firstSourceTs);
-
-  return sourceRows.map((row) => {
-    const offset = new Date(row.sourceTs).getTime() - firstSourceTs;
-    return new Date(start + offset).toISOString().replace("Z", "");
-  });
-}
-
-async function seedSensorRaw() {
-  const sensorRows = readSensorCsvRows();
-  if (sensorRows.length === 0) {
-    throw new Error("sensor_sequence_1hour_5sec.csv에 센서 데이터가 없습니다.");
-  }
-
-  await run(`DELETE FROM sensor_raw WHERE created_at = ?`, [DEMO_SENSOR_CREATED_AT]);
-
-  const timestamps = buildRecentSequenceTimestamps(sensorRows);
-
-  for (let index = 0; index < sensorRows.length; index += 1) {
-    const row = sensorRows[index];
-    await run(
-      `INSERT INTO sensor_raw (
-        ts,
-        temperature,
-        humidity,
-        mq5_raw,
-        mq5_index,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        timestamps[index],
-        row.temperature,
-        row.humidity,
-        row.mq5_raw,
-        row.mq5_index,
-        DEMO_SENSOR_CREATED_AT
-      ]
-    );
-  }
-
-  const oneHourAgo = new Date(Date.now() + KST_OFFSET_MS - 60 * 60 * 1000)
-    .toISOString()
-    .replace("Z", "");
-  const [sensorSummary] = await all(
-    `SELECT AVG(temperature) AS avg_temp_1h,
-            AVG(humidity) AS avg_humidity_1h,
-            AVG(mq5_index) AS avg_mq5_index_1h
-     FROM sensor_raw
-     WHERE ts >= ?
-       AND created_at = ?`,
-    [oneHourAgo, DEMO_SENSOR_CREATED_AT]
-  );
-
-  return {
-    avg_temp_1h: sensorSummary?.avg_temp_1h ?? null,
-    avg_humidity_1h: sensorSummary?.avg_humidity_1h ?? null,
-    avg_mq5_index_1h: sensorSummary?.avg_mq5_index_1h ?? null
-  };
-}
-
-function buildRecentMinuteTimestamps(count) {
+function recentMinuteTs(index, count = 60) {
   const latest = new Date(Date.now() + KST_OFFSET_MS);
   latest.setUTCSeconds(0, 0);
+  latest.setUTCMinutes(latest.getUTCMinutes() - (count - 1 - index));
+  return latest.toISOString().replace("Z", "");
+}
 
-  return Array.from({ length: count }, (_, index) => {
-    const ts = new Date(latest);
-    ts.setUTCMinutes(latest.getUTCMinutes() - (count - 1 - index));
-    return ts.toISOString().replace("Z", "");
+function recentFiveSecondTs(index, count = 720) {
+  const latest = new Date(Date.now() + KST_OFFSET_MS);
+  latest.setUTCMilliseconds(0);
+  latest.setUTCSeconds(latest.getUTCSeconds() - (count - 1 - index) * 5);
+  return latest.toISOString().replace("Z", "");
+}
+
+function presleepMinuteTs(dayOffset, index) {
+  if (dayOffset === 0) return recentMinuteTs(index);
+  return utcTs(dayOffset, 12, index);
+}
+
+function predictionTs(dayOffset) {
+  if (dayOffset === 0) return recentMinuteTs(59);
+  return utcTs(dayOffset, 13);
+}
+
+function buildBpmArray(avg, count = 60) {
+  return Array.from({ length: count }, (_, i) =>
+    Math.min(150, Math.max(40, Math.round(avg + 6 * Math.sin(i * 0.7) + (i % 3 - 1) * 1.5)))
+  );
+}
+
+function buildStepsArray(total, count = 60) {
+  const arr = new Array(count).fill(0);
+  if (total <= 0) return arr;
+  const active = 25;
+  const base = Math.floor(total / active);
+  const rem = total - base * active;
+  for (let i = 0; i < active; i += 1) {
+    arr[count - active + i] = base + (i === 0 ? rem : 0);
+  }
+  return arr;
+}
+
+function buildCaloriesArray(total, count = 60) {
+  const arr = new Array(count).fill(0);
+  if (total <= 0) return arr;
+  const active = 30;
+  const base = Number((total / active).toFixed(2));
+  for (let i = 0; i < active; i += 1) {
+    arr[count - active + i] = base;
+  }
+  const diff = Number((total - arr.reduce((sum, value) => sum + value, 0)).toFixed(2));
+  arr[count - 1] = Number((arr[count - 1] + diff).toFixed(2));
+  return arr;
+}
+
+function buildSensorRows(dayOffset, temp, humidity, mq5) {
+  return Array.from({ length: 720 }, (_, i) => {
+    const totalSec = i * 5;
+    const ts = dayOffset === 0
+      ? recentFiveSecondTs(i)
+      : utcTs(dayOffset, 12, Math.floor(totalSec / 60), totalSec % 60);
+    return {
+      ts,
+      temperature: Number((temp + 0.2 * Math.sin(i * 0.3)).toFixed(1)),
+      humidity: Math.round(humidity + 0.5 * Math.cos(i * 0.5)),
+      mq5_raw: Math.round(130 + (mq5 - 0.5) * 200 + 2 * Math.sin(i)),
+      mq5_index: Number((mq5 + 0.01 * Math.cos(i * 0.4)).toFixed(3))
+    };
   });
 }
 
-async function seedFitbitFromSeedDb() {
-  const sourceDb = new sqlite3.Database(sourceDbPath);
+async function clearDemoData() {
+  await dbRun(`DELETE FROM fitbit_heart WHERE created_at = ?`, [DEMO_TAG]);
+  await dbRun(`DELETE FROM fitbit_steps WHERE created_at = ?`, [DEMO_TAG]);
+  await dbRun(`DELETE FROM fitbit_calories WHERE created_at = ?`, [DEMO_TAG]);
+  await dbRun(`DELETE FROM sensor_raw WHERE created_at = ?`, [DEMO_TAG]);
+  await dbRun(`DELETE FROM pattern_profile`);
 
-  try {
-    const [caloriesTable] = await allFromSource(
-      sourceDb,
-      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fitbit_calories'`
-    );
-    const [heartRows, stepsRows] = await Promise.all([
-      allFromSource(sourceDb, `SELECT bpm FROM fitbit_heart ORDER BY ts`),
-      allFromSource(sourceDb, `SELECT steps FROM fitbit_steps ORDER BY ts`)
-    ]);
-    let caloriesRows = caloriesTable
-      ? await allFromSource(sourceDb, `SELECT calories FROM fitbit_calories ORDER BY ts`)
-      : [];
-
-    if (heartRows.length === 0 || stepsRows.length === 0) {
-      throw new Error("zzz-seed.db에 fitbit_heart 또는 fitbit_steps 데이터가 없습니다.");
-    }
-
-    if (caloriesRows.length === 0) {
-      caloriesRows = await all(
-        `SELECT calories
-         FROM (
-           SELECT calories, ts
-           FROM fitbit_calories
-           WHERE created_at != ?
-           ORDER BY ts DESC
-           LIMIT 60
-         )
-         ORDER BY ts`,
-        [DEMO_FITBIT_CREATED_AT]
-      );
-    }
-
-    await run(`DELETE FROM fitbit_heart WHERE created_at = ?`, [DEMO_FITBIT_CREATED_AT]);
-    await run(`DELETE FROM fitbit_steps WHERE created_at = ?`, [DEMO_FITBIT_CREATED_AT]);
-    await run(`DELETE FROM fitbit_calories WHERE created_at = ?`, [DEMO_FITBIT_CREATED_AT]);
-
-    const heartTimestamps = buildRecentMinuteTimestamps(heartRows.length);
-    const stepsTimestamps = buildRecentMinuteTimestamps(stepsRows.length);
-    const caloriesTimestamps = buildRecentMinuteTimestamps(caloriesRows.length);
-
-    for (let index = 0; index < heartRows.length; index += 1) {
-      await run(
-        `INSERT OR IGNORE INTO fitbit_heart (ts, bpm, created_at)
-         VALUES (?, ?, ?)`,
-        [heartTimestamps[index], heartRows[index].bpm, DEMO_FITBIT_CREATED_AT]
-      );
-    }
-
-    for (let index = 0; index < stepsRows.length; index += 1) {
-      await run(
-        `INSERT OR IGNORE INTO fitbit_steps (ts, steps, created_at)
-         VALUES (?, ?, ?)`,
-        [stepsTimestamps[index], stepsRows[index].steps, DEMO_FITBIT_CREATED_AT]
-      );
-    }
-
-    for (let index = 0; index < caloriesRows.length; index += 1) {
-      await run(
-        `INSERT OR IGNORE INTO fitbit_calories (ts, calories, created_at)
-         VALUES (?, ?, ?)`,
-        [caloriesTimestamps[index], caloriesRows[index].calories, DEMO_FITBIT_CREATED_AT]
-      );
-    }
-
-    const oneHourAgo = new Date(Date.now() + KST_OFFSET_MS - 60 * 60 * 1000)
-      .toISOString()
-      .replace("Z", "");
-    const [heartSummary] = await all(
-      `SELECT AVG(bpm) AS avg_hr_1h
-       FROM fitbit_heart
-       WHERE ts >= ?
-         AND created_at = ?`,
-      [oneHourAgo, DEMO_FITBIT_CREATED_AT]
-    );
-    const [stepsSummary] = await all(
-      `SELECT SUM(steps) AS steps_sum_1h
-       FROM fitbit_steps
-       WHERE ts >= ?
-         AND created_at = ?`,
-      [oneHourAgo, DEMO_FITBIT_CREATED_AT]
-    );
-    const [caloriesSummary] = await all(
-      `SELECT SUM(calories) AS calories_sum_1h
-       FROM fitbit_calories
-       WHERE ts >= ?
-         AND created_at = ?`,
-      [oneHourAgo, DEMO_FITBIT_CREATED_AT]
-    );
-
-    return {
-      avg_hr_1h: heartSummary?.avg_hr_1h ?? null,
-      steps_sum_1h: stepsSummary?.steps_sum_1h ?? null,
-      calories_sum_1h: caloriesSummary?.calories_sum_1h ?? null
-    };
-  } finally {
-    sourceDb.close();
+  for (const sc of SCENARIOS) {
+    const date = dateStr(sc.dayOffset);
+    await dbRun(`DELETE FROM prediction_result WHERE target_sleep_date = ?`, [date]);
+    await dbRun(`DELETE FROM fitbit_sleep WHERE sleep_date = ?`, [date]);
+    await dbRun(`DELETE FROM sleep_score_result WHERE sleep_date = ?`, [date]);
+    await dbRun(`DELETE FROM user_feedback WHERE sleep_date = ?`, [date]);
+    await dbRun(`DELETE FROM post_analysis_result WHERE sleep_date = ?`, [date]);
   }
 }
 
-async function seedPostAnalysis(dates) {
-  const latestDate = dates[dates.length - 1];
-  const sleepDate = latestDate.toISOString().slice(0, 10);
-  const causes = [
-    "깊은 수면 비율은 안정적이었지만 전체 수면 시간이 약간 부족했습니다.",
-    "실내 습도는 무난했지만 취침 전 활동량이 약간 남아 있었습니다."
-  ];
-  const analysisText =
-    "전반적인 회복감은 양호하지만, 취침 직전 활동을 조금 더 낮추면 다음 날 컨디션이 더 안정적으로 유지될 가능성이 있습니다.";
-  const createdAt = new Date(latestDate);
-  createdAt.setUTCHours(23, 0, 0, 0);
+async function seedIntraday(sc) {
+  const bpms = buildBpmArray(sc.hr);
+  const steps = buildStepsArray(sc.steps);
+  const calories = buildCaloriesArray(sc.calories);
 
-  await run(`DELETE FROM post_analysis_result WHERE sleep_date = ?`, [sleepDate]);
-  await run(
-    `INSERT INTO post_analysis_result (
-      sleep_date,
-      causes_json,
-      analysis_text,
-      created_at
-    )
-    VALUES (?, ?, ?, ?)`,
-    [
-      sleepDate,
-      JSON.stringify(causes),
-      analysisText,
-      createdAt.toISOString()
-    ]
-  );
+  for (let i = 0; i < 60; i += 1) {
+    const ts = presleepMinuteTs(sc.dayOffset, i);
+    await dbRun(`INSERT OR REPLACE INTO fitbit_heart (ts, bpm, created_at) VALUES (?, ?, ?)`, [ts, bpms[i], DEMO_TAG]);
+    await dbRun(`INSERT OR REPLACE INTO fitbit_steps (ts, steps, created_at) VALUES (?, ?, ?)`, [ts, steps[i], DEMO_TAG]);
+    await dbRun(`INSERT OR REPLACE INTO fitbit_calories (ts, calories, created_at) VALUES (?, ?, ?)`, [ts, calories[i], DEMO_TAG]);
+  }
+
+  for (const row of buildSensorRows(sc.dayOffset, sc.temp, sc.humidity, sc.mq5)) {
+    await dbRun(
+      `INSERT INTO sensor_raw (ts, temperature, humidity, mq5_raw, mq5_index, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [row.ts, row.temperature, row.humidity, row.mq5_raw, row.mq5_index, DEMO_TAG]
+    );
+  }
 }
 
-async function seedPredictionResult(dates, fitbitSummary, sensorSummary) {
-  const latestDate = dates[dates.length - 1];
-  const targetSleepDate = latestDate.toISOString().slice(0, 10);
-  const predictionTs = new Date(latestDate);
-  predictionTs.setUTCHours(21, 30, 0, 0);
+async function seedScenario(sc) {
+  const date = dateStr(sc.dayOffset);
+  const tag = sc.dayOffset >= 0 ? `+${sc.dayOffset}` : `${sc.dayOffset}`;
+  console.log(`\n  [D${tag}] ${date}`);
 
-  const snapshot = {
+  await seedIntraday(sc);
+
+  const featureSnap = {
     user_id: "user-01",
-    avg_hr_1h: fitbitSummary.avg_hr_1h,
-    steps_sum_1h: fitbitSummary.steps_sum_1h,
-    calories_sum_1h: fitbitSummary.calories_sum_1h,
-    avg_temp_1h: sensorSummary.avg_temp_1h,
-    avg_humidity_1h: sensorSummary.avg_humidity_1h,
-    avg_mq5_index_1h: sensorSummary.avg_mq5_index_1h,
-    recent_avg_sleep_minutes: 402,
-    target_sleep_date: targetSleepDate
+    avg_hr_1h: sc.hr,
+    steps_sum_1h: sc.steps,
+    calories_sum_1h: sc.calories,
+    avg_temp_1h: sc.temp,
+    avg_humidity_1h: sc.humidity,
+    avg_mq5_index_1h: sc.mq5,
+    target_sleep_date: date
+  };
+  const risk = computePresleepRisk(featureSnap, null);
+  const predTs = predictionTs(sc.dayOffset);
+
+  await dbRun(
+    `INSERT INTO prediction_result
+       (prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [predTs, date, risk.risk_level, risk.risk_score, JSON.stringify(risk.reasons),
+      risk.action_text, JSON.stringify(featureSnap), predTs]
+  );
+  console.log(`    예측: ${risk.risk_level} (${risk.risk_score}점)  이유 ${risk.reasons.length}건`);
+
+  if (sc.sleepMin == null) {
+    console.log("    수면 결과 없음 (오늘)");
+    return;
+  }
+
+  const sleepStartTs = utcTs(sc.dayOffset, 14);
+  const sleepEndTs = utcTs(sc.dayOffset + 1, 5);
+  const sleepRow = {
+    minutes_asleep: sc.sleepMin,
+    minutes_awake: sc.awakeMin,
+    deep_minutes: sc.deepMin,
+    light_minutes: sc.lightMin,
+    rem_minutes: sc.remMin
   };
 
-  await run(`DELETE FROM prediction_result`);
-  await run(
-    `INSERT INTO prediction_result (
-      prediction_ts,
-      target_sleep_date,
-      risk_level,
-      risk_score,
-      reasons_json,
-      action_text,
-      feature_snapshot_json,
-      created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      predictionTs.toISOString(),
-      targetSleepDate,
-      "LOW",
-      35,
-      JSON.stringify([]),
-      "현재 상태를 유지해도 괜찮습니다.",
-      JSON.stringify(snapshot),
-      predictionTs.toISOString()
-    ]
+  await dbRun(
+    `INSERT INTO fitbit_sleep
+       (sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
+        deep_minutes, light_minutes, rem_minutes, is_main_sleep, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [date, sleepStartTs, sleepEndTs, sc.sleepMin, sc.awakeMin, sc.deepMin, sc.lightMin, sc.remMin, sleepStartTs]
   );
+
+  await dbRun(
+    `INSERT INTO sleep_score_result
+       (sleep_date, total_score, time_asleep_score, deep_rem_score, restoration_score, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [date, sc.sleepScore, Number((sc.sleepScore * 0.50).toFixed(1)),
+      Number((sc.sleepScore * 0.30).toFixed(1)), Number((sc.sleepScore * 0.20).toFixed(1)), sleepEndTs]
+  );
+
+  await dbRun(
+    `INSERT INTO user_feedback (sleep_date, satisfaction_score, created_at) VALUES (?, ?, ?)`,
+    [date, sc.satisfaction, sleepEndTs]
+  );
+
+  await updatePatternStage1(date);
+  const stage2 = await updatePatternStage2(date, sc.satisfaction, sc.sleepScore);
+  const analysis = analyzePostSleep({
+    sleepRow,
+    scoreResult: { total_score: sc.sleepScore },
+    featureSnapshot: featureSnap,
+    satisfactionScore: sc.satisfaction,
+    patternProfile: { score_gap_trend: stage2.score_gap_trend }
+  });
+  const analysisText = analysis.score_gap_note
+    ? `${analysis.analysis_text} ${analysis.score_gap_note}`
+    : analysis.analysis_text;
+
+  await dbRun(
+    `INSERT INTO post_analysis_result (sleep_date, causes_json, analysis_text, created_at)
+     VALUES (?, ?, ?, ?)`,
+    [date, analysis.causes_json, analysisText, sleepEndTs]
+  );
+
+  const sensStr = Object.entries(stage2.env_sensitivity)
+    .filter(([, value]) => value > 0)
+    .map(([key, value]) => `${key}:${value}`)
+    .join(" ");
+  console.log(`    수면 ${sc.sleepMin}분  만족도 ${sc.satisfaction}  점수 ${sc.sleepScore}`);
+  console.log(`    패턴: accuracy=${stage2.pred_accuracy_rate}  gap_trend=${Number(stage2.score_gap_trend).toFixed(1)}  sensitivity=[${sensStr}]`);
 }
 
 async function main() {
+  console.log("=".repeat(56));
+  console.log(" seed_demo_data - 7일 시연 데이터");
+  console.log("=".repeat(56));
+
+  await dbRun(`BEGIN TRANSACTION`);
   try {
-    const dates = buildRecentDates(7);
-    const fitbitSummary = await seedFitbitFromSeedDb();
-    await seedSleepScores(dates);
-    const sensorSummary = await seedSensorRaw();
-    await seedPredictionResult(dates, fitbitSummary, sensorSummary);
-    await seedPostAnalysis(dates);
-    console.log("Seeded demo data for Fitbit, prediction_result, sleep_score_result, sensor_raw, and post_analysis_result.");
+    await clearDemoData();
+    console.log("  기존 demo seed 데이터 클리어 완료");
+
+    for (const sc of SCENARIOS) {
+      await seedScenario(sc);
+    }
+
+    await dbRun(`COMMIT`);
   } catch (error) {
-    console.error("Failed to seed demo data:", error.message);
-    process.exitCode = 1;
-  } finally {
-    db.close();
+    await dbRun(`ROLLBACK`);
+    throw error;
   }
+
+  console.log("\n" + "=".repeat(56));
+  console.log(" 완료");
+  console.log(" 검증: node processing/validate_realdata.js");
+  console.log("=".repeat(56));
 }
 
-main();
+main()
+  .catch((error) => {
+    console.error("Failed to seed demo data:", error.message);
+    process.exitCode = 1;
+  })
+  .finally(() => db.close());

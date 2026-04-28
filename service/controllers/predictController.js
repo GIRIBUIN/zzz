@@ -16,15 +16,20 @@ function hasStoredPresleepData(snapshot) {
 async function postPresleepPrediction(req, res) {
   try {
     let collectionWarning = null;
+    const skipCollect = req.query.skip_collect === 'true';
 
-    try {
-      console.log("[predictController] Fitbit 데이터 수집 시작");
-      await collectPresleep();
-      console.log("[predictController] Fitbit 데이터 수집 완료");
-      await new Promise(resolve => setTimeout(resolve, 500));
-    } catch (error) {
-      collectionWarning = `Fitbit live sync skipped: ${error.message}`;
-      console.warn("[predictController] Fitbit 수집 실패, 저장된 데이터로 계속 진행:", error.message);
+    if (!skipCollect) {
+      try {
+        console.log("[predictController] Fitbit 데이터 수집 시작");
+        await collectPresleep();
+        console.log("[predictController] Fitbit 데이터 수집 완료");
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        collectionWarning = `Fitbit live sync skipped: ${error.message}`;
+        console.warn("[predictController] Fitbit 수집 실패, 저장된 데이터로 계속 진행:", error.message);
+      }
+    } else {
+      console.log("[predictController] 데이터 수집 단계 생략 (skip_collect=true)");
     }
 
     const sinceIso = new Date(Date.now() + KST_OFFSET_MS - 60 * 60 * 1000)

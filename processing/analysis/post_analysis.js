@@ -7,12 +7,25 @@ const CAUSE_LABELS = {
   temp:     "실내 온도 높음",
   humidity: "실내 습도 높음",
   hr:       "취침 전 심박 상승",
-  activity: "취침 전 과도한 활동"
+  activity: "취침 전 과도한 활동",
+  low_satisfaction: "주관적 수면 만족도 낮음",
+  score_gap: "객관 점수와 체감 만족도 차이",
+  short_sleep: "총 수면 시간 부족",
+  awake: "중간 각성 시간 증가",
+  low_deep_rem: "깊은 수면/REM 수면 부족"
 };
 
-function detectCauses(featureSnapshot, patternProfile) {
+function detectCauses(featureSnapshot, patternProfile, sleepRow, scoreResult, satisfactionScore) {
   const f = featureSnapshot || {};
   const baseHr = Number(patternProfile?.avg_presleep_hr ?? 70);
+  const minutesAsleep = Number(sleepRow?.minutes_asleep ?? 0);
+  const minutesAwake = Number(sleepRow?.minutes_awake ?? 0);
+  const deepMinutes = Number(sleepRow?.deep_minutes ?? 0);
+  const remMinutes = Number(sleepRow?.rem_minutes ?? 0);
+  const totalScore = Number(scoreResult?.total_score ?? 0);
+  const satisfaction = satisfactionScore == null ? null : Number(satisfactionScore);
+  const scoreGap = satisfaction == null ? null : totalScore - satisfaction;
+  const deepRemRatio = minutesAsleep > 0 ? (deepMinutes + remMinutes) / minutesAsleep : null;
 
   const hits = [];
   if (Number(f.avg_mq5_index_1h) >= 0.5)         hits.push({ key: "gas",      weight: 3 });
@@ -20,6 +33,11 @@ function detectCauses(featureSnapshot, patternProfile) {
   if (Number(f.avg_temp_1h) >= 25.5)              hits.push({ key: "temp",     weight: 2 });
   if (Number(f.avg_humidity_1h) >= 65)            hits.push({ key: "humidity", weight: 2 });
   if (Number(f.steps_sum_1h) >= 300)              hits.push({ key: "activity", weight: 1 });
+  if (satisfaction != null && satisfaction < 50)   hits.push({ key: "low_satisfaction", weight: 3 });
+  if (scoreGap != null && Math.abs(scoreGap) >= 10) hits.push({ key: "score_gap", weight: 2 });
+  if (minutesAsleep > 0 && minutesAsleep < 360)    hits.push({ key: "short_sleep", weight: 2 });
+  if (minutesAwake >= 30)                          hits.push({ key: "awake", weight: 2 });
+  if (deepRemRatio != null && deepRemRatio < 0.25) hits.push({ key: "low_deep_rem", weight: 2 });
 
   hits.sort((a, b) => b.weight - a.weight);
   return hits;
@@ -34,7 +52,7 @@ function buildScoreGapNote(autoScore, satisfactionScore) {
 }
 
 function analyzePostSleep({ sleepRow, scoreResult, featureSnapshot, satisfactionScore, patternProfile }) {
-  const causes = detectCauses(featureSnapshot, patternProfile);
+  const causes = detectCauses(featureSnapshot, patternProfile, sleepRow, scoreResult, satisfactionScore);
   const noSensorData = !featureSnapshot;
 
   const mainCause = causes[0] ? CAUSE_LABELS[causes[0].key] : null;

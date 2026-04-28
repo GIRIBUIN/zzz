@@ -1,4 +1,9 @@
 const db = require("../../storage/db/db");
+const { ensureSleepScoreForDate } = require("./sleepScoreService");
+const {
+  updatePatternStage1,
+  updatePatternStage2
+} = require("../../processing/pattern/pattern_update");
 const {
   generatePostAnalysisForDate,
   hasPostAnalysis
@@ -108,6 +113,77 @@ function saveFeedbackRecord(payload) {
 
 async function saveFeedback(payload) {
   const result = await saveFeedbackRecord(payload);
+  let sleepScore = null;
+  let pattern = null;
+
+  try {
+    sleepScore = await ensureSleepScoreForDate(result.sleep_date);
+  } catch (error) {
+    console.error("[feedbackService] sleep score ensure failed:", error.message);
+    sleepScore = {
+      action: "failed",
+      sleep_date: result.sleep_date,
+      reason: error.message
+    };
+  }
+
+  const scoreTotal = sleepScore?.score?.total_score;
+  const shouldUpdatePattern =
+    scoreTotal != null &&
+    (result.action === "insert" ||
+      result.action === "update" ||
+      sleepScore.action === "created");
+
+  if (shouldUpdatePattern) {
+    try {
+      const stage1 = await updatePatternStage1(result.sleep_date);
+      const stage2 = await updatePatternStage2(
+        result.sleep_date,
+        result.satisfaction_score,
+        scoreTotal
+      );
+      pattern = {
+        action: "upsert",
+        sleep_date: result.sleep_date,
+        stage1: {
+          updated_at: stage1.updated_at,
+          avg_sleep_minutes: stage1.avg_sleep_minutes,
+          avg_presleep_hr: stage1.avg_presleep_hr
+        },
+        stage2: {
+          updated_at: stage2.updated_at,
+          avg_satisfaction: stage2.avg_satisfaction,
+          score_gap_trend: stage2.score_gap_trend,
+          pred_accuracy_rate: stage2.pred_accuracy_rate,
+          env_sensitivity: stage2.env_sensitivity
+        },
+        pred_accuracy_rate: stage2.pred_accuracy_rate,
+        score_gap_trend: stage2.score_gap_trend
+      };
+
+      console.log("[feedbackService] pattern updated:", {
+        sleep_date: result.sleep_date,
+        avg_sleep_minutes: pattern.stage1.avg_sleep_minutes,
+        avg_presleep_hr: pattern.stage1.avg_presleep_hr,
+        avg_satisfaction: pattern.stage2.avg_satisfaction,
+        score_gap_trend: pattern.stage2.score_gap_trend,
+        pred_accuracy_rate: pattern.stage2.pred_accuracy_rate
+      });
+    } catch (error) {
+      console.error("[feedbackService] pattern update failed:", error.message);
+      pattern = {
+        action: "failed",
+        sleep_date: result.sleep_date,
+        reason: error.message
+      };
+    }
+  } else {
+    pattern = {
+      action: "skipped",
+      sleep_date: result.sleep_date
+    };
+  }
+
   const shouldGenerateAnalysis =
     result.action === "insert" ||
     result.action === "update" ||
@@ -116,6 +192,8 @@ async function saveFeedback(payload) {
   if (!shouldGenerateAnalysis) {
     return {
       ...result,
+      sleep_score: sleepScore,
+      pattern,
       post_analysis: {
         action: "unchanged",
         sleep_date: result.sleep_date
@@ -131,12 +209,16 @@ async function saveFeedback(payload) {
 
     return {
       ...result,
+      sleep_score: sleepScore,
+      pattern,
       post_analysis: postAnalysis
     };
   } catch (error) {
     console.error("[feedbackService] post analysis failed:", error.message);
     return {
       ...result,
+      sleep_score: sleepScore,
+      pattern,
       post_analysis: {
         action: "failed",
         sleep_date: result.sleep_date,

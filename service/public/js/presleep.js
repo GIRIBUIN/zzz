@@ -31,7 +31,10 @@ function renderList(id, items, fallbackText = "항목 없음") {
 
   items.forEach((item) => {
     const li = document.createElement("li");
-    li.textContent = String(item);
+    li.textContent =
+      item && typeof item === "object"
+        ? item.label || item.text || item.key || JSON.stringify(item)
+        : String(item);
     list.appendChild(li);
   });
 }

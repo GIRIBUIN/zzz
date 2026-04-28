@@ -25,7 +25,7 @@ async function callSlm(prompt) {
     }
     return text;
   } catch (err) {
-    console.error("[slm_client] ERROR]", err);
+    console.error("[slm_client] ERROR", err);
     return null;
   } finally {
     clearTimeout(timer);

@@ -12,6 +12,7 @@ dotenv.config({ path: path.join(__dirname, "..", "..", ".env") });
 
 const db = require("./db");
 const { computePresleepRisk } = require("../../processing/prediction/prediction");
+const { calcSleepScore } = require("../../processing/scoring/sleep_score");
 const { updatePatternStage1, updatePatternStage2 } = require("../../processing/pattern/pattern_update");
 const { analyzePostSleep } = require("../../processing/analysis/post_analysis");
 
@@ -21,22 +22,22 @@ const DEMO_TAG = "demo-seed";
 const SCENARIOS = [
   { dayOffset: -6, hr: 74, steps: 180, calories: 95, temp: 24.5, humidity: 18, mq5: 0.31,
     sleepMin: 430, deepMin: 85, remMin: 95, lightMin: 250, awakeMin: 15,
-    satisfaction: 78, sleepScore: 82 },
+    satisfaction: 78 },
   { dayOffset: -5, hr: 76, steps: 250, calories: 120, temp: 24.8, humidity: 19, mq5: 0.35,
     sleepMin: 415, deepMin: 80, remMin: 90, lightMin: 245, awakeMin: 18,
-    satisfaction: 72, sleepScore: 79 },
+    satisfaction: 72 },
   { dayOffset: -4, hr: 83, steps: 450, calories: 230, temp: 26.3, humidity: 20, mq5: 0.58,
     sleepMin: 350, deepMin: 45, remMin: 55, lightMin: 250, awakeMin: 40,
-    satisfaction: 38, sleepScore: 52 },
+    satisfaction: 38 },
   { dayOffset: -3, hr: 86, steps: 520, calories: 260, temp: 26.8, humidity: 21, mq5: 0.63,
     sleepMin: 310, deepMin: 35, remMin: 45, lightMin: 230, awakeMin: 50,
-    satisfaction: 32, sleepScore: 45 },
+    satisfaction: 32 },
   { dayOffset: -2, hr: 79, steps: 320, calories: 185, temp: 25.6, humidity: 19, mq5: 0.50,
     sleepMin: 385, deepMin: 65, remMin: 75, lightMin: 245, awakeMin: 28,
-    satisfaction: 58, sleepScore: 70 },
+    satisfaction: 58 },
   { dayOffset: -1, hr: 75, steps: 190, calories: 105, temp: 24.9, humidity: 18, mq5: 0.38,
     sleepMin: 405, deepMin: 78, remMin: 88, lightMin: 239, awakeMin: 20,
-    satisfaction: 68, sleepScore: 76 },
+    satisfaction: 68 },
   { dayOffset: 0, hr: 78.8, steps: 818, calories: 240, temp: 25.9, humidity: 19, mq5: 0.552,
     sleepMin: null }
 ];
@@ -46,6 +47,15 @@ function dbRun(sql, params = []) {
     db.run(sql, params, function onRun(err) {
       if (err) return reject(err);
       resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
     });
   });
 }
@@ -218,6 +228,15 @@ async function seedScenario(sc) {
     rem_minutes: sc.remMin
   };
 
+  await updatePatternStage1(date);
+  const latestPattern = await dbGet(
+    `SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend
+     FROM pattern_profile
+     ORDER BY updated_at DESC
+     LIMIT 1`
+  );
+  const scoreResult = calcSleepScore(sleepRow, latestPattern);
+
   await dbRun(
     `INSERT INTO fitbit_sleep
        (sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
@@ -230,8 +249,8 @@ async function seedScenario(sc) {
     `INSERT INTO sleep_score_result
        (sleep_date, total_score, time_asleep_score, deep_rem_score, restoration_score, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [date, sc.sleepScore, Number((sc.sleepScore * 0.50).toFixed(1)),
-      Number((sc.sleepScore * 0.30).toFixed(1)), Number((sc.sleepScore * 0.20).toFixed(1)), sleepEndTs]
+    [date, scoreResult.total_score, scoreResult.time_asleep_score,
+      scoreResult.deep_rem_score, scoreResult.restoration_score, sleepEndTs]
   );
 
   await dbRun(
@@ -239,11 +258,10 @@ async function seedScenario(sc) {
     [date, sc.satisfaction, sleepEndTs]
   );
 
-  await updatePatternStage1(date);
-  const stage2 = await updatePatternStage2(date, sc.satisfaction, sc.sleepScore);
+  const stage2 = await updatePatternStage2(date, sc.satisfaction, scoreResult.total_score);
   const analysis = analyzePostSleep({
     sleepRow,
-    scoreResult: { total_score: sc.sleepScore },
+    scoreResult,
     featureSnapshot: featureSnap,
     satisfactionScore: sc.satisfaction,
     patternProfile: { score_gap_trend: stage2.score_gap_trend }
@@ -262,7 +280,7 @@ async function seedScenario(sc) {
     .filter(([, value]) => value > 0)
     .map(([key, value]) => `${key}:${value}`)
     .join(" ");
-  console.log(`    수면 ${sc.sleepMin}분  만족도 ${sc.satisfaction}  점수 ${sc.sleepScore}`);
+  console.log(`    수면 ${sc.sleepMin}분  만족도 ${sc.satisfaction}  점수 ${scoreResult.total_score}`);
   console.log(`    패턴: accuracy=${stage2.pred_accuracy_rate}  gap_trend=${Number(stage2.score_gap_trend).toFixed(1)}  sensitivity=[${sensStr}]`);
 }
 

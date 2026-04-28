@@ -125,6 +125,8 @@ Table post_analysis_result {
 
 Table pattern_profile {
   id integer [pk, increment]
+  sleep_date text [note: "YYYY-MM-DD"]
+  stage text [note: "stage1 / stage2"]
   updated_at text [not null]
   avg_sleep_minutes real
   avg_satisfaction real
@@ -135,5 +137,6 @@ Table pattern_profile {
 
   indexes {
     updated_at [name: "idx_pattern_profile_updated_at"]
+    (sleep_date, stage) [unique, name: "uq_pattern_profile_sleep_date_stage"]
   }
 }

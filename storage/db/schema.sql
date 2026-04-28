@@ -163,6 +163,8 @@ ON post_analysis_result(sleep_date);
 -- =========================================================
 CREATE TABLE IF NOT EXISTS pattern_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sleep_date TEXT,                         -- YYYY-MM-DD, source sleep date for this pattern update
+    stage TEXT,                              -- stage1 / stage2
     updated_at TEXT NOT NULL,
     avg_sleep_minutes REAL,
     avg_satisfaction REAL,
@@ -174,3 +176,6 @@ CREATE TABLE IF NOT EXISTS pattern_profile (
 
 CREATE INDEX IF NOT EXISTS idx_pattern_profile_updated_at
 ON pattern_profile(updated_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pattern_profile_sleep_date_stage
+ON pattern_profile(sleep_date, stage);

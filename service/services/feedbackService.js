@@ -1,6 +1,10 @@
 const db = require("../../storage/db/db");
+const {
+  generatePostAnalysisForDate,
+  hasPostAnalysis
+} = require("./postAnalysisService");
 
-function saveFeedback(payload) {
+function saveFeedbackRecord(payload) {
   return new Promise((resolve, reject) => {
     const { sleep_date, satisfaction_score } = payload || {};
 
@@ -100,6 +104,46 @@ function saveFeedback(payload) {
       }
     });
   });
+}
+
+async function saveFeedback(payload) {
+  const result = await saveFeedbackRecord(payload);
+  const shouldGenerateAnalysis =
+    result.action === "insert" ||
+    result.action === "update" ||
+    !(await hasPostAnalysis(result.sleep_date));
+
+  if (!shouldGenerateAnalysis) {
+    return {
+      ...result,
+      post_analysis: {
+        action: "unchanged",
+        sleep_date: result.sleep_date
+      }
+    };
+  }
+
+  try {
+    const postAnalysis = await generatePostAnalysisForDate(
+      result.sleep_date,
+      result.satisfaction_score
+    );
+
+    return {
+      ...result,
+      post_analysis: postAnalysis
+    };
+  } catch (error) {
+    console.error("[feedbackService] post analysis failed:", error.message);
+    return {
+      ...result,
+      post_analysis: {
+        action: "failed",
+        sleep_date: result.sleep_date,
+        reason: error.message
+      }
+    };
+  }
 }
 
 module.exports = {

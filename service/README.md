@@ -180,10 +180,8 @@ service/
 - `predictionService.js`
 - `resultService.js`
 - `feedbackService.js`
-
-이후 기능이 커지면 아래 파일도 생길 수 있습니다.
-
 - `sleepScoreService.js`
+- `postAnalysisService.js`
 - `analysisService.js`
 - `dashboardService.js`
 
@@ -208,12 +206,18 @@ service/
 
 - `index.html`
 - `presleep.html`
-- `presleep.js`
 - `postsleep.html`
-- `postsleep.js`
 - `result.html`
-- `result.js`
-- `app.js`
+- `css/common.css`
+- `css/overview.css`
+- `css/presleep.css`
+- `css/postsleep.css`
+- `css/result.css`
+- `js/common.js`
+- `js/overview.js`
+- `js/presleep.js`
+- `js/postsleep.js`
+- `js/result.js`
 
 즉 지금은 `index`를 허브처럼 두고,  
 `presleep`, `postsleep`, `result` 화면을 분리해서 기능별로 붙여 가는 방식으로 시작한 상태입니다.

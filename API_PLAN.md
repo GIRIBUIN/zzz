@@ -28,12 +28,12 @@
 
 용도:
 - 취침 전 예측 요청
-- 현재는 skeleton endpoint
-- 이후 실제 feature 기반 예측 로직 연결 예정
+- Fitbit 수집 또는 저장된 최근 데이터 기반 feature 생성
+- 취침 전 위험도, 위험 요인, 행동 제안 반환
 
 현재 상태:
-- skeleton 연결 완료
-- 실제 계산 로직은 아직 없음
+- 실제 feature 기반 예측 및 DB 저장 연결 완료
+- `skip_collect=true` 쿼리로 Fitbit 수집 단계를 생략하고 저장된 데이터만 사용할 수 있음
 
 ---
 
@@ -42,12 +42,23 @@
 
 용도:
 - 최신 결과 조회
-- 현재는 skeleton endpoint
-- 이후 DB 조회 및 종합 결과 반환으로 확장 예정
+- 최신 feedback, prediction, sleep score, post analysis 종합 조회
 
 현재 상태:
-- skeleton 연결 완료
-- 실제 DB 조회는 아직 없음
+- 실제 DB 조회 연결 완료
+
+---
+
+### Sleep score history
+- `GET /result/sleep-score-history?limit=7`
+
+용도:
+- 최근 Sleep Score 추이 조회
+- Overview 화면의 점수 그래프 표시
+
+현재 상태:
+- 실제 DB 조회 연결 완료
+- `limit`은 1~30 사이로 제한
 
 ---
 
@@ -57,6 +68,7 @@
 용도:
 - 기상 후 수면 만족도 입력
 - 같은 날짜 재입력 시 수정
+- feedback 저장 후 Sleep Score, post analysis, pattern profile 후속 갱신 연결
 
 현재 상태:
 - DB 저장/수정 연결 완료
@@ -94,11 +106,13 @@ Current response example:
 {
   "status": "ok",
   "endpoint": "POST /predict/presleep",
+  "warning": null,
   "data": {
-    "message": "presleep prediction endpoint ready",
-    "received": {
-      "user_id": "user-01"
-    }
+    "id": 1,
+    "risk_level": "medium",
+    "risk_score": 64,
+    "reasons": [],
+    "action_text": "오늘은 취침 전 자극을 줄이는 것이 좋습니다."
   }
 }
 ```
@@ -113,8 +127,27 @@ Current response example:
   "status": "ok",
   "endpoint": "GET /result/latest",
   "data": {
-    "message": "latest result endpoint ready",
-    "result": null
+    "message": "latest result fetched",
+    "feedback": null,
+    "prediction": null,
+    "sleep_score": null,
+    "post_analysis": null
+  }
+}
+```
+
+---
+
+### `GET /result/sleep-score-history?limit=7`
+
+Current response example:
+```json
+{
+  "status": "ok",
+  "endpoint": "GET /result/sleep-score-history",
+  "data": {
+    "message": "sleep score history fetched",
+    "history": []
   }
 }
 ```
@@ -195,14 +228,13 @@ Error response example:
 - `/`
   - index 허브 화면
   - health 상태 확인 가능
+  - summary / environment / sleep score trend 확인 가능
+- `/presleep.html`
+  - 취침 전 예측 실행 및 결과 확인 화면
 - `/postsleep.html`
   - feedback 입력 / 저장 / 수정 화면
-
-추후 아래 화면을 확장할 수 있습니다.
-
-- `/presleep.html`
-- 결과 조회 화면
-- 통합 대시보드 화면
+- `/result.html`
+  - 최신 feedback / prediction / sleep score / analysis 결과 조회 화면
 
 ---
 
@@ -236,13 +268,13 @@ Error response example:
 
 1. Health check 유지
 2. Feedback 입력/저장/수정 안정화
-3. `result/latest`를 실제 DB 조회로 연결
-4. `predict/presleep`에 실제 예측 로직 연결
-5. 결과 조회 화면 추가
-6. presleep 화면 추가
+3. `result/latest` 실제 DB 조회 유지
+4. `predict/presleep` 실제 예측 로직 유지
+5. Sleep Score / post analysis / pattern update 흐름 고도화
+6. Fitbit 및 센서 실제 수집 안정화
 
-즉 현재는 **입력과 최소 API skeleton을 확보한 상태**에서  
-조회와 예측 로직을 차례대로 붙여 가는 방향입니다.
+즉 현재는 **서비스 화면과 주요 API 흐름을 연결한 상태**에서  
+실제 수집 안정성과 개인화 로직을 고도화하는 방향입니다.
 
 ---
 
@@ -250,5 +282,5 @@ Error response example:
 
 - 현재 API는 팀원들이 바로 구현을 시작할 수 있도록 최소 단위로 열어 둔 상태입니다.
 - 현재 endpoint 이름은 이후 기능이 구체화되면 더 세분화될 수 있습니다.
-- feedback API는 현재 입력 저장/수정만 담당하며, pattern update는 직접 수행하지 않습니다.
-- pattern update는 이후 processing 계층 또는 별도 흐름에서 최신 feedback를 읽어 반영하는 방향으로 확장합니다.
+- feedback API는 입력 저장/수정 이후 Sleep Score, post analysis, pattern update 흐름을 호출합니다.
+- pattern update 로직은 processing 계층을 통해 최신 feedback와 계산 결과를 반영하는 방향으로 유지합니다.

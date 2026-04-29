@@ -47,13 +47,19 @@ cd zzz
 
 ```bash
 FITBIT_ACCESS_TOKEN=
-FITBIT_USER_ID=-
+FITBIT_REFRESH_TOKEN=
+FITBIT_USER_ID=D4S4M2
 DB_PATH=./storage/db/zzz.db
 TIMEZONE=Asia/Seoul
 SENSOR_INTERVAL_SECONDS=60
 PRESLEEP_WINDOW_MINUTES=60
 PATTERN_WINDOW_DAYS=7
 PORT=3000
+
+# SLM (Ollama) — 주석 해제 시 활성화 / ollama pull gemma4:e4b && ollama serve
+# SLM_ENDPOINT=http://localhost:11434
+# SLM_MODEL=gemma4:e4b
+# SLM_TIMEOUT_MS=30000
 ```
 
 최신 값은 `.env.example` 기준으로 확인하면 됩니다.
@@ -68,6 +74,12 @@ PORT=3000
 
 ```bash
 npm install
+```
+
+Raspberry Pi 센서 수집 기능을 개발할 때만 해당 환경에서 아래 의존성을 별도로 설치합니다.
+
+```bash
+npm install i2c-bus
 ```
 
 ---

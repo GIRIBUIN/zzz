@@ -26,6 +26,26 @@
 
 ---
 
+## 🚀 Quick Start
+
+처음 프로젝트를 받은 뒤 루트 디렉터리에서 아래 명령을 실행합니다.
+
+```bash
+npm install
+cp .env.example .env
+npm run init-db
+npm run seed-demo
+npm run dev
+```
+
+실행 후 브라우저에서 `http://localhost:3000`으로 접속합니다.
+
+Raspberry Pi 센서 수집 기능을 개발할 때만 해당 환경에서 `npm install i2c-bus`를 별도로 실행합니다.
+
+자세한 실행 방법은 [HOW_TO_RUN.md](./HOW_TO_RUN.md)를 참고합니다.
+
+---
+
 ## 🔍 Overview
 
 **ZZZ**는 취침 전에 오늘 밤의 수면 질 저하 가능성을 예측하고, 기상 후에는 실제 수면 결과와 사용자 체감을 함께 해석하며, 반복 사용을 통해 점진적으로 개인화되는 스마트 헬스케어 서비스입니다.

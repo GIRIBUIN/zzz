@@ -119,7 +119,7 @@ async function submitFeedback() {
     }
 
     feedbackMessage.textContent =
-      `${result.message} | ${result.sleep_date} | ${result.satisfaction_score}/100 | ${formatKoreanDateTime(result.created_at)}`;
+      `${result.message} | wake ${result.wake_date || sleep_date} -> sleep ${result.sleep_date} | ${result.satisfaction_score}/100 | ${formatKoreanDateTime(result.created_at)}`;
 
     await loadLatestSummary();
   } catch (error) {

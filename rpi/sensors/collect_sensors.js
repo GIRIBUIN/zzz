@@ -8,11 +8,12 @@ try {
 
 const { readDht11 } = require("./dht11_reader");
 const { readMq5 } = require("./mq5_reader");
+const { kstIsoLocal } = require("../../utils/time");
 
 const SENSOR_INTERVAL_SECONDS = Number(process.env.SENSOR_INTERVAL_SECONDS || 60);
 
 async function collectSensors() {
-  const collectedAt = new Date().toISOString();
+  const collectedAt = kstIsoLocal();
 
   const [dhtResult, mq5Result] = await Promise.allSettled([
     readDht11(),

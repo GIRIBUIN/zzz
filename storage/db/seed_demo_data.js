@@ -61,17 +61,17 @@ function dbGet(sql, params = []) {
 }
 
 function dateStr(dayOffset) {
-  const d = new Date();
+  const d = new Date(Date.now() + KST_OFFSET_MS);
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + dayOffset);
   return d.toISOString().slice(0, 10);
 }
 
-function utcTs(dayOffset, utcHour, utcMinute = 0, utcSecond = 0) {
-  const d = new Date();
+function utcTs(dayOffset, localHour, localMinute = 0, localSecond = 0) {
+  const d = new Date(Date.now() + KST_OFFSET_MS);
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + dayOffset);
-  d.setUTCHours(utcHour, utcMinute, utcSecond, 0);
+  d.setUTCHours(localHour, localMinute, localSecond, 0);
   return d.toISOString().replace("Z", "");
 }
 
@@ -91,12 +91,12 @@ function recentFiveSecondTs(index, count = 720) {
 
 function presleepMinuteTs(dayOffset, index) {
   if (dayOffset === 0) return recentMinuteTs(index);
-  return utcTs(dayOffset, 12, index);
+  return utcTs(dayOffset, 21, index);
 }
 
 function predictionTs(dayOffset) {
   if (dayOffset === 0) return recentMinuteTs(59);
-  return utcTs(dayOffset, 13);
+  return utcTs(dayOffset, 22);
 }
 
 function buildBpmArray(avg, count = 60) {
@@ -135,7 +135,7 @@ function buildSensorRows(dayOffset, temp, humidity, mq5) {
     const totalSec = i * 5;
     const ts = dayOffset === 0
       ? recentFiveSecondTs(i)
-      : utcTs(dayOffset, 12, Math.floor(totalSec / 60), totalSec % 60);
+      : utcTs(dayOffset, 21, Math.floor(totalSec / 60), totalSec % 60);
     return {
       ts,
       temperature: Number((temp + 0.2 * Math.sin(i * 0.3)).toFixed(1)),
@@ -218,8 +218,8 @@ async function seedScenario(sc) {
     return;
   }
 
-  const sleepStartTs = utcTs(sc.dayOffset, 14);
-  const sleepEndTs = utcTs(sc.dayOffset + 1, 5);
+  const sleepStartTs = utcTs(sc.dayOffset, 23);
+  const sleepEndTs = utcTs(sc.dayOffset + 1, 7);
   const sleepRow = {
     minutes_asleep: sc.sleepMin,
     minutes_awake: sc.awakeMin,

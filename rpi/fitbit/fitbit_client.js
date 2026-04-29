@@ -3,6 +3,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { kstDateString } = require('../../utils/time');
 
 // .env 로드
 function loadEnv() {
@@ -173,7 +174,7 @@ function fetchCaloriesIntraday() {
  * 수면 요약 + 수면 단계 (오늘)
  */
 function fetchSleep() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = kstDateString();
   return fitbitGet(`/1.2/user/${USER_ID}/sleep/date/${today}.json`);
 }
 

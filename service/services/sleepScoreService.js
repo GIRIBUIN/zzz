@@ -1,6 +1,7 @@
 const db = require("../../storage/db/db");
 const { calcSleepScore } = require("../../processing/scoring/sleep_score");
 const { fetchSleep } = require("../../rpi/fitbit/fitbit_client");
+const { kstDateString } = require("../../utils/time");
 
 const inflightEnsures = new Map();
 
@@ -23,7 +24,7 @@ function dbRun(sql, params = []) {
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return kstDateString();
 }
 
 async function getSleepScore(sleepDate) {

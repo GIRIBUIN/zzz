@@ -1,8 +1,7 @@
 const { executePresleepPrediction } = require("../services/predictionService");
 const { collectPresleep } = require("../../rpi/fitbit/collect_fitbit");
 const { buildPresleepFeatures } = require("../../processing/feature/feature_builder");
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const { kstIsoLocal } = require("../../utils/time");
 
 function hasStoredPresleepData(snapshot) {
   return (
@@ -32,9 +31,7 @@ async function postPresleepPrediction(req, res) {
       console.log("[predictController] 데이터 수집 단계 생략 (skip_collect=true)");
     }
 
-    const sinceIso = new Date(Date.now() + KST_OFFSET_MS - 60 * 60 * 1000)
-      .toISOString()
-      .replace("Z", "");
+    const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
     const snapshot = await buildPresleepFeatures(sinceIso);
     console.log("[predictController] feature snapshot:", snapshot);
 

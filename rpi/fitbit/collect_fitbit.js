@@ -18,6 +18,7 @@ const {
 } = require('./fitbit_client');
 
 const db = require('../../storage/db/db');
+const { kstDateString } = require('../../utils/time');
 
 // 파ㅏㄹ미터 파싱
 const args    = process.argv.slice(2);
@@ -32,7 +33,7 @@ if (!['presleep', 'postsleep'].includes(mode)) {
 // Helper
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return kstDateString(); // YYYY-MM-DD, KST
 }
 
 function nowIso() {

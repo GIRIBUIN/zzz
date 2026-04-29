@@ -5,6 +5,7 @@ dotenv.config({ path: path.join(__dirname, "..", "..", ".env") });
 
 const db = require("./db");
 const DEMO_TAG = "demo-seed";
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function run(query, params = []) {
   return new Promise((resolve, reject) => {
@@ -16,7 +17,7 @@ function run(query, params = []) {
 }
 
 function dateStr(dayOffset) {
-  const d = new Date();
+  const d = new Date(Date.now() + KST_OFFSET_MS);
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + dayOffset);
   return d.toISOString().slice(0, 10);
@@ -30,7 +31,7 @@ async function main() {
     await run(`DELETE FROM sensor_raw WHERE created_at = ?`, [DEMO_TAG]);
     await run(`DELETE FROM pattern_profile`);
 
-    for (let offset = -6; offset <= 0; offset += 1) {
+    for (let offset = -14; offset <= 0; offset += 1) {
       const date = dateStr(offset);
       await run(`DELETE FROM prediction_result WHERE target_sleep_date = ?`, [date]);
       await run(`DELETE FROM fitbit_sleep WHERE sleep_date = ?`, [date]);

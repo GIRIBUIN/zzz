@@ -2,14 +2,16 @@ const db = require("../../storage/db/db");
 const { presleepPredictor } = require("../../processing/prediction/prediction");
 const { callSlm } = require("../../processing/slm/slm_client");
 const { buildPresleepPrompt } = require("../../processing/slm/prompt_builder");
+const { kstDateString, kstIsoLocal } = require("../../utils/time");
 
 function getTargetSleepDate() {
-  return new Date().toISOString().slice(0, 10);
+  return kstDateString();
 }
 
 function savePredictionResult(payload, predictionResult) {
   return new Promise((resolve, reject) => {
-    const predictionTs = new Date().toISOString();
+    const predictionTs = kstIsoLocal();
+    const createdAt = new Date().toISOString();
     const targetSleepDate = payload?.target_sleep_date || getTargetSleepDate();
     const reasonsJson = JSON.stringify(predictionResult.reasons || []);
     const snapshotJson = JSON.stringify(payload || {});
@@ -38,7 +40,7 @@ function savePredictionResult(payload, predictionResult) {
         reasonsJson,
         predictionResult.action_text,
         snapshotJson,
-        predictionTs
+        createdAt
       ],
       function insertPrediction(insertErr) {
         if (insertErr) {
@@ -55,7 +57,7 @@ function savePredictionResult(payload, predictionResult) {
           reasons_json: reasonsJson,
           action_text: predictionResult.action_text,
           feature_snapshot_json: snapshotJson,
-          created_at: predictionTs,
+          created_at: createdAt,
           message: predictionResult.message,
           received: predictionResult.received || payload || {}
         });

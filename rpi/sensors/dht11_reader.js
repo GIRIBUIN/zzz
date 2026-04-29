@@ -1,6 +1,7 @@
 const DHT_SENSOR_TYPE = Number(process.env.DHT_SENSOR_TYPE || 11); // DHT11 = 11, DHT22 = 22
 const DHT_GPIO_PIN = Number(process.env.DHT_GPIO_PIN || 4); // BCM GPIO4, physical pin 7
 const USE_MOCK_SENSOR = String(process.env.USE_MOCK_SENSOR).toLowerCase() === "true";
+const { kstIsoLocal } = require("../../utils/time");
 
 let dhtSensorModule = null;
 
@@ -22,7 +23,7 @@ function readMockDht11() {
   return {
     temperature: 24 + Math.random() * 2,
     humidity: 45 + Math.random() * 10,
-    ts: new Date().toISOString(),
+    ts: kstIsoLocal(),
     source: "mock-dht",
   };
 }
@@ -44,7 +45,7 @@ function readDht11() {
       resolve({
         temperature: Number(temperature.toFixed(1)),
         humidity: Number(humidity.toFixed(1)),
-        ts: new Date().toISOString(),
+        ts: kstIsoLocal(),
         source: "dht11",
       });
     });

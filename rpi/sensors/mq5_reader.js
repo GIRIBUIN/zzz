@@ -1,4 +1,5 @@
 const USE_MOCK_SENSOR = String(process.env.USE_MOCK_SENSOR).toLowerCase() === "true";
+const { kstIsoLocal } = require("../../utils/time");
 
 const I2C_BUS_NUMBER = Number(process.env.I2C_BUS_NUMBER || 1);
 const MQ5_ADC_ADDRESS = Number(process.env.MQ5_ADC_ADDRESS || "0x48"); // PCF8591 default
@@ -26,7 +27,7 @@ function readMockMq5() {
   return {
     mq5_raw: raw,
     mq5_index: Number((raw / 255).toFixed(3)),
-    ts: new Date().toISOString(),
+    ts: kstIsoLocal(),
     source: "mock-mq5",
   };
 }
@@ -68,7 +69,7 @@ function readMq5() {
       resolve({
         mq5_raw: raw,
         mq5_index: Number((raw / 255).toFixed(3)),
-        ts: new Date().toISOString(),
+        ts: kstIsoLocal(),
         source: "mq5-pcf8591",
       });
     } catch (err) {

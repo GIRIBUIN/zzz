@@ -8,6 +8,7 @@ const {
   generatePostAnalysisForDate,
   hasPostAnalysis
 } = require("./postAnalysisService");
+const { kstDateString, previousDateString } = require("../../utils/time");
 
 function saveFeedbackRecord(payload) {
   return new Promise((resolve, reject) => {
@@ -34,14 +35,14 @@ function saveFeedbackRecord(payload) {
     // The post-sleep UI receives the morning wake date.
     // Internally, records are grouped by the date the sleep started.
     const wake_date = inputDate;
-    const sleep_date = getPreviousDate(inputDate);
+    const sleep_date = previousDateString(inputDate);
 
     if (!sleep_date) {
       return reject(new Error("wake_date must be YYYY-MM-DD"));
     }
 
     // 미래 날짜 입력 방지
-    const today = getLocalDateString();
+    const today = kstDateString();
     if (wake_date > today) {
       return reject(new Error("future wake_date is not allowed"));
     }
@@ -121,27 +122,6 @@ function saveFeedbackRecord(payload) {
       }
     });
   });
-}
-
-function getPreviousDate(dateString) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
-    return null;
-  }
-
-  const date = new Date(`${dateString}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-}
-
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 async function saveFeedback(payload) {

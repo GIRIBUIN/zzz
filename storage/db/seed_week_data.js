@@ -69,18 +69,18 @@ function dbRun(sql, params = []) {
   });
 }
 
-// UTC 기준 ISO string (Z 없음) — dayOffset, UTC 시/분/초 지정
-function utcTs(dayOffset, utcHour, utcMinute = 0, utcSecond = 0) {
-  const d = new Date();
+// KST local ISO string (Z 없음) — dayOffset, local 시/분/초 지정
+function utcTs(dayOffset, localHour, localMinute = 0, localSecond = 0) {
+  const d = new Date(Date.now() + KST_OFFSET_MS);
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + dayOffset);
-  d.setUTCHours(utcHour, utcMinute, utcSecond, 0);
+  d.setUTCHours(localHour, localMinute, localSecond, 0);
   return d.toISOString().replace("Z", "");
 }
 
-// YYYY-MM-DD (UTC 날짜 기준)
+// YYYY-MM-DD (KST 날짜 기준)
 function dateStr(dayOffset) {
-  const d = new Date();
+  const d = new Date(Date.now() + KST_OFFSET_MS);
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + dayOffset);
   return d.toISOString().slice(0, 10);
@@ -110,8 +110,8 @@ function buildStepsArray(total, count = 60) {
 
 // 5초 간격 720개 센서 행: 값 ± 소량 노이즈
 function buildSensorRows(dayOffset, temp, humidity, mq5) {
-  // 취침 전 1시간: KST 21:00~22:00 = UTC 12:00~13:00
-  const SENSOR_UTC_START_HOUR = 12;
+  // 취침 전 1시간: KST 21:00~22:00
+  const SENSOR_UTC_START_HOUR = 21;
   return Array.from({ length: 720 }, (_, i) => {
     const totalSec = i * 5;
     const ts  = utcTs(dayOffset, SENSOR_UTC_START_HOUR, Math.floor(totalSec / 60), totalSec % 60);
@@ -127,8 +127,8 @@ function buildSensorRows(dayOffset, temp, humidity, mq5) {
 // 시나리오별 시딩
 // ─────────────────────────────────────────────────────────────
 
-// 취침 전 피트빗/센서: KST 21:00~22:00 = UTC 12:00~13:00
-const PRESLEEP_UTC = 12;
+// 취침 전 피트빗/센서: KST 21:00~22:00
+const PRESLEEP_UTC = 21;
 
 async function seedScenario(sc) {
   const date = dateStr(sc.dayOffset);
@@ -175,7 +175,7 @@ async function seedScenario(sc) {
     target_sleep_date: date
   };
   const risk    = computePresleepRisk(featureSnap, null);
-  const predTs  = utcTs(sc.dayOffset, PRESLEEP_UTC + 1); // UTC 13:00 = KST 22:00
+  const predTs  = utcTs(sc.dayOffset, PRESLEEP_UTC + 1); // KST 22:00
 
   await dbRun(`DELETE FROM prediction_result WHERE target_sleep_date = ?`, [date]);
   await dbRun(
@@ -194,8 +194,8 @@ async function seedScenario(sc) {
   }
 
   // ── Fitbit sleep ──
-  const sleepStartTs = utcTs(sc.dayOffset,     14,  0);  // KST 23:00
-  const sleepEndTs   = utcTs(sc.dayOffset + 1,  5,  0);  // 다음날 KST 14:00
+  const sleepStartTs = utcTs(sc.dayOffset,     23,  0);  // KST 23:00
+  const sleepEndTs   = utcTs(sc.dayOffset + 1,  7,  0);  // 다음날 KST 07:00
 
   await dbRun(`DELETE FROM fitbit_sleep WHERE sleep_date = ?`, [date]);
   await dbRun(

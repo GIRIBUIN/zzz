@@ -9,9 +9,9 @@ const fs   = require("fs");
 
 const { buildPresleepFeatures }  = require("./feature/feature_builder");
 const { computePresleepRisk }    = require("./prediction/prediction");
+const { kstIsoLocal } = require("../utils/time");
 
 const SNAPSHOT_PATH = path.join(__dirname, "demo_data", "snapshot.json");
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function section(title) {
   console.log("\n" + "=".repeat(52));
@@ -28,9 +28,7 @@ function info(label, value) {
 
 async function main() {
   // 1시간 전 KST 기준 ISO (sensor / fitbit 쿼리용)
-  const sinceIso = new Date(Date.now() + KST_OFFSET_MS - 60 * 60 * 1000)
-    .toISOString()
-    .replace("Z", "");
+  const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
 
   section("A. Feature Extraction — 실 DB 데이터 기준");
   info("1h window since (KST)", sinceIso);

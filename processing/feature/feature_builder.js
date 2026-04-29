@@ -1,4 +1,5 @@
 const db = require("../../storage/db/db");
+const { kstDateString, kstDateDaysAgo } = require("../../utils/time");
 
 const RECENT_N_DAYS = 7;
 
@@ -49,10 +50,10 @@ async function buildPresleepFeatures(sinceIso) {
       `SELECT COUNT(DISTINCT pr.target_sleep_date) AS cnt
        FROM prediction_result pr
        JOIN user_feedback uf ON pr.target_sleep_date = uf.sleep_date
-       WHERE pr.target_sleep_date >= date('now', '-' || ? || ' days')
+       WHERE pr.target_sleep_date >= ?
          AND uf.satisfaction_score < 50
          AND pr.risk_level IN ('MEDIUM', 'HIGH')`,
-      [RECENT_N_DAYS]
+      [kstDateDaysAgo(RECENT_N_DAYS)]
     ),
     dbGet(
       `SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h FROM fitbit_calories WHERE ts >= ?`,
@@ -76,7 +77,7 @@ async function buildPresleepFeatures(sinceIso) {
 
   return {
     user_id:                "user-01",
-    target_sleep_date:      new Date().toISOString().slice(0, 10),
+    target_sleep_date:      kstDateString(),
     avg_hr_1h:              heartRow?.avg_hr_1h  ?? null,
     max_hr_1h:              heartRow?.max_hr_1h  ?? null,
     steps_sum_1h:           stepsRow?.steps_sum_1h ?? 0,

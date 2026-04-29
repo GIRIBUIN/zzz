@@ -26,6 +26,30 @@
 
 ---
 
+## 🚀 Quick Start
+
+After cloning the project, run the following commands from the project root.
+
+```bash
+npm install
+cp .env.example .env
+npm run init-db
+npm run seed-demo
+npm run dev
+```
+
+Then open `http://localhost:3000` in your browser.
+
+Install `i2c-bus` separately only when developing Raspberry Pi sensor collection on the Raspberry Pi environment.
+
+```bash
+npm install i2c-bus
+```
+
+For more details, see [HOW_TO_RUN.md](./HOW_TO_RUN.md).
+
+---
+
 ## 🔍 Overview
 
 **ZZZ** is a smart healthcare service that predicts possible sleep quality decline **before bedtime**, interprets actual sleep results **after waking up**, and gradually becomes more personalized through repeated use.

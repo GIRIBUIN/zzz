@@ -49,10 +49,14 @@
 ```text
 processing/
 ├─ analysis/
+├─ demo_data/
 ├─ feature/
 ├─ pattern/
 ├─ prediction/
 ├─ scoring/
+├─ slm/
+├─ demo.js
+├─ validate_realdata.js
 └─ README.md
 ```
 
@@ -154,6 +158,28 @@ processing/
 
 예상 파일:
 - `pattern_update.js`
+
+---
+
+### 4-6. `slm/`
+
+`slm/`은 rule-based 판단 결과를 **사용자가 이해하기 쉬운 자연어 피드백으로 변환**합니다.
+
+현재 구조에서는 로컬 Ollama를 SLM 서버로 사용하며, 서버가 없을 경우 rule-based 결과 문자열로 자동 fallback합니다.
+
+데이터가 충분히 쌓이지 않은 초기(cold start)에는 SLM이 원시 센서값을 직접 해석하고, 7일 이상 데이터가 누적되면 rule-based 판단 결과를 다듬는 역할로 전환합니다.
+
+예상 파일:
+- `slm_client.js` — Ollama HTTP 클라이언트, 타임아웃 및 fallback 처리
+- `prompt_builder.js` — rule-based 결과를 한국어 프롬프트로 변환 (순수 함수)
+
+### 4-7. 데모 및 검증 파일
+
+현재 processing 계층에는 계산 흐름을 빠르게 확인하기 위한 보조 파일도 함께 둡니다.
+
+- `demo.js` — processing 계산 흐름 확인용 데모 실행 파일
+- `validate_realdata.js` — 실제 적재 데이터 기준 검증용 파일
+- `demo_data/` — 데모와 검증에 사용하는 샘플 입력 데이터
 
 ---
 

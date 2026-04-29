@@ -16,6 +16,8 @@ README나 구조 문서가 프로젝트 소개와 폴더 역할 설명을 담당
 - 현재 사용 스크립트:
   - `npm run dev`
   - `npm run init-db`
+  - `npm run seed-demo`
+  - `npm run cleanup-demo`
 
 ### 왜 이렇게 했는가
 
@@ -105,16 +107,16 @@ README나 구조 문서가 프로젝트 소개와 폴더 역할 설명을 담당
 
 즉:
 
-- feedback API 안에서 `pattern_profile`을 직접 갱신하지 않음
-- feedback 저장 이후 후속 계산은 별도 단계에서 처리
-- 이후 pattern update 로직이 최신 feedback를 읽어 반영하는 구조로 확장
+- feedback API는 feedback 저장/수정을 먼저 처리함
+- 이후 Sleep Score, post analysis, pattern update는 service 흐름에서 후속 처리함
+- pattern update 계산 자체는 processing 계층 로직을 통해 수행함
 
 ### 왜 이렇게 했는가
 
-지금 단계에서 feedback 저장과 pattern 재계산까지 한 번에 묶으면  
+feedback 저장 로직 안에 pattern 계산 공식을 직접 넣으면  
 API 책임이 커지고 구조도 금방 복잡해집니다.
 
-그래서 현재는 **입력 저장**과 **후속 계산**의 책임을 분리해 두는 쪽을 선택했습니다.
+그래서 현재는 **입력 저장**과 **후속 계산 로직**의 책임을 분리해 두는 쪽을 선택했습니다.
 
 ---
 
@@ -125,23 +127,26 @@ API 책임이 커지고 구조도 금방 복잡해집니다.
 - localhost 실행
 - health check 응답
 - DB 초기화
+- 데모 데이터 적재 / 정리
 - feedback 입력
 - 같은 날짜 재입력 시 수정
 - 같은 값 재입력 시 no change
 - postsleep 화면을 통한 feedback 입력/저장/수정 확인
+- presleep prediction의 실제 계산 및 DB 저장
+- `result/latest`의 실제 DB 조회
+- Sleep Score 계산 결과 연결
+- post analysis 연결
+- pattern update 후속 반영
 
 아직 구현되지 않았거나 후속 단계인 항목은 아래와 같습니다.
 
 - 실제 Fitbit 데이터 수집
 - 실제 센서 데이터 수집
-- presleep prediction의 실제 계산 로직
-- `result/latest`의 실제 DB 조회
-- Sleep Score 계산 결과 연결
-- post analysis 연결
-- pattern update 자동 반영
+- 실제 장치 환경에서의 Raspberry Pi 센서 수집 안정화
+- 실제 사용자 데이터 기반 개인화 로직 고도화
 
 즉 현재 프로젝트는  
-**최소 실행 가능한 API와 입력 흐름을 먼저 확보한 단계**로 봅니다.
+**서비스 화면과 주요 API 흐름을 연결하고, 실제 수집 안정화와 개인화 고도화를 앞둔 단계**로 봅니다.
 
 ---
 

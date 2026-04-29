@@ -1,0 +1,142 @@
+Project zzz {
+  database_type: "SQLite"
+  Note: "ZZZ smart healthcare local database schema"
+}
+
+Table sensor_raw {
+  id integer [pk, increment]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  temperature real
+  humidity real
+  mq5_raw real
+  mq5_index real
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    ts [name: "idx_sensor_raw_ts"]
+  }
+}
+
+Table fitbit_heart {
+  id integer [pk, increment]
+  ts text [not null, unique, note: "ISO 8601 timestamp"]
+  bpm integer [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    ts [unique, name: "uq_fitbit_heart_ts"]
+  }
+}
+
+Table fitbit_steps {
+  id integer [pk, increment]
+  ts text [not null, unique, note: "ISO 8601 timestamp"]
+  steps integer [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    ts [unique, name: "uq_fitbit_steps_ts"]
+  }
+}
+
+Table fitbit_calories {
+  id integer [pk, increment]
+  ts text [not null, unique, note: "ISO 8601 timestamp"]
+  calories real [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    ts [unique, name: "uq_fitbit_calories_ts"]
+  }
+}
+
+Table fitbit_sleep {
+  id integer [pk, increment]
+  sleep_date text [not null, unique, note: "YYYY-MM-DD"]
+  start_time text
+  end_time text
+  minutes_asleep integer
+  minutes_awake integer
+  deep_minutes integer
+  light_minutes integer
+  rem_minutes integer
+  is_main_sleep integer [note: "1=true, 0=false"]
+  raw_json text [note: "Original Fitbit sleep response snapshot"]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    sleep_date [unique, name: "uq_fitbit_sleep_date"]
+  }
+}
+
+Table user_feedback {
+  id integer [pk, increment]
+  sleep_date text [not null]
+  satisfaction_score real [not null, note: "0-100"]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    sleep_date [name: "idx_user_feedback_date"]
+  }
+}
+
+Table prediction_result {
+  id integer [pk, increment]
+  prediction_ts text [not null, note: "Execution time"]
+  target_sleep_date text [note: "Intended sleep date"]
+  risk_level text [not null, note: "LOW / MEDIUM / HIGH"]
+  risk_score real
+  reasons_json text [note: "JSON array of reasons"]
+  action_text text
+  feature_snapshot_json text [note: "Features used at prediction time"]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    prediction_ts [name: "idx_prediction_result_ts"]
+    target_sleep_date [name: "idx_prediction_result_target_date"]
+  }
+}
+
+Table sleep_score_result {
+  id integer [pk, increment]
+  sleep_date text [not null]
+  time_asleep_score real
+  deep_rem_score real
+  restoration_score real
+  total_score real
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    sleep_date [name: "idx_sleep_score_result_date"]
+  }
+}
+
+Table post_analysis_result {
+  id integer [pk, increment]
+  sleep_date text [not null]
+  causes_json text [note: "JSON array of causes"]
+  analysis_text text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    sleep_date [name: "idx_post_analysis_result_date"]
+  }
+}
+
+Table pattern_profile {
+  id integer [pk, increment]
+  sleep_date text [note: "YYYY-MM-DD"]
+  stage text [note: "stage1 / stage2"]
+  updated_at text [not null]
+  avg_sleep_minutes real
+  avg_satisfaction real
+  avg_presleep_hr real
+  score_gap_trend real [note: "Objective vs subjective trend"]
+  env_sensitivity_json text
+  pattern_snapshot_json text
+
+  indexes {
+    updated_at [name: "idx_pattern_profile_updated_at"]
+    (sleep_date, stage) [unique, name: "uq_pattern_profile_sleep_date_stage"]
+  }
+}

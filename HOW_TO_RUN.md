@@ -47,13 +47,19 @@ cd zzz
 
 ```bash
 FITBIT_ACCESS_TOKEN=
-FITBIT_USER_ID=-
+FITBIT_REFRESH_TOKEN=
+FITBIT_USER_ID=D4S4M2
 DB_PATH=./storage/db/zzz.db
 TIMEZONE=Asia/Seoul
 SENSOR_INTERVAL_SECONDS=60
 PRESLEEP_WINDOW_MINUTES=60
 PATTERN_WINDOW_DAYS=7
 PORT=3000
+
+# SLM (Ollama) — 주석 해제 시 활성화 / ollama pull gemma4:e4b && ollama serve
+# SLM_ENDPOINT=http://localhost:11434
+# SLM_MODEL=gemma4:e4b
+# SLM_TIMEOUT_MS=30000
 ```
 
 최신 값은 `.env.example` 기준으로 확인하면 됩니다.
@@ -68,6 +74,12 @@ PORT=3000
 
 ```bash
 npm install
+```
+
+Raspberry Pi 센서 수집 기능을 개발할 때만 해당 환경에서 아래 의존성을 별도로 설치합니다.
+
+```bash
+npm install i2c-bus
 ```
 
 ---
@@ -131,16 +143,25 @@ npm run dev
 이후 실제 센서 수집 / Fitbit 연동 / 예측 및 분석 파이프라인이 연결되면  
 운영 흐름에서는 더미 데이터를 넣지 않고 실제 적재 데이터로 화면을 확인하게 됩니다.
 
-아래 명령은 다음 테이블에 테스트용 데이터를 넣습니다.
+아래 명령은 7일치 시연 흐름을 기준으로 테스트용 데이터를 넣습니다.
 
+- `fitbit_heart`
+- `fitbit_steps`
+- `fitbit_calories`
+- `fitbit_sleep`
+- `sensor_raw`
 - `prediction_result`
 - `sleep_score_result`
-- `sensor_raw`
+- `user_feedback`
 - `post_analysis_result`
+- `pattern_profile`
 
 ```bash
 npm run seed-demo
 ```
+
+오늘 데이터는 취침 전 예측 시연을 위해 최근 1시간 기준으로 들어갑니다.
+오늘 수면 결과는 아직 없는 상태로 둡니다.
 
 테스트가 끝난 뒤 더미 데이터를 지우고 싶으면 아래 명령을 사용합니다.
 

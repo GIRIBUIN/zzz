@@ -28,3 +28,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Validation snapshot (local timestamp-bound, not committed)
+processing/demo_data/snapshot.json

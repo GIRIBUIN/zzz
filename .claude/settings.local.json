@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node service/server.js)",
+      "Bash(curl -s -X POST http://localhost:3000/predict/presleep -H \"Content-Type: application/json\")"
+    ]
+  }
+}

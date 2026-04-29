@@ -69,6 +69,8 @@ zzz/
 ├─ storage/
 ├─ processing/
 ├─ service/
+├─ assets/
+├─ package-lock.json
 ├─ .env.example
 ├─ .gitignore
 ├─ package.json
@@ -160,6 +162,9 @@ zzz/
 - `scoring/sleep_score.js`
 - `analysis/post_analysis.js`
 - `pattern/pattern_update.js`
+- `slm/`
+- `demo.js`
+- `validate_realdata.js`
 
 핵심은, `processing`은 **계산만 한다**는 점입니다.
 
@@ -202,6 +207,9 @@ zzz/
 
 즉 `service/`는 실제 Express 코드가 있는 위치고,  
 의존성과 실행 스크립트는 프로젝트 루트 기준으로 관리합니다.
+
+Raspberry Pi 전용 센서 의존성인 `i2c-bus`는 일반 로컬 실행 의존성에서 분리하고,  
+센서 수집 기능을 개발할 때 해당 Raspberry Pi 환경에서 별도로 설치합니다.
 
 ---
 

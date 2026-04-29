@@ -11,10 +11,10 @@ const {
 
 function saveFeedbackRecord(payload) {
   return new Promise((resolve, reject) => {
-    const { sleep_date, satisfaction_score } = payload || {};
+    const { sleep_date: inputDate, satisfaction_score } = payload || {};
 
-    if (!sleep_date) {
-      return reject(new Error("sleep_date is required"));
+    if (!inputDate) {
+      return reject(new Error("wake_date is required"));
     }
 
     if (
@@ -31,10 +31,19 @@ function saveFeedbackRecord(payload) {
       return reject(new Error("satisfaction_score must be between 0 and 100"));
     }
 
+    // The post-sleep UI receives the morning wake date.
+    // Internally, records are grouped by the date the sleep started.
+    const wake_date = inputDate;
+    const sleep_date = getPreviousDate(inputDate);
+
+    if (!sleep_date) {
+      return reject(new Error("wake_date must be YYYY-MM-DD"));
+    }
+
     // 미래 날짜 입력 방지
-    const today = new Date().toISOString().slice(0, 10);
-    if (sleep_date > today) {
-      return reject(new Error("future sleep_date is not allowed"));
+    const today = getLocalDateString();
+    if (wake_date > today) {
+      return reject(new Error("future wake_date is not allowed"));
     }
 
     const now = new Date().toISOString();
@@ -59,6 +68,7 @@ function saveFeedbackRecord(payload) {
             message: "feedback unchanged",
             action: "no_change",
             id: row.id,
+            wake_date,
             sleep_date,
             satisfaction_score: score
           });
@@ -80,6 +90,7 @@ function saveFeedbackRecord(payload) {
             message: "feedback updated",
             action: "update",
             id: row.id,
+            wake_date,
             sleep_date,
             satisfaction_score: score,
             created_at: now
@@ -101,6 +112,7 @@ function saveFeedbackRecord(payload) {
             message: "feedback saved",
             action: "insert",
             id: this.lastID,
+            wake_date,
             sleep_date,
             satisfaction_score: score,
             created_at: now
@@ -109,6 +121,27 @@ function saveFeedbackRecord(payload) {
       }
     });
   });
+}
+
+function getPreviousDate(dateString) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+    return null;
+  }
+
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 async function saveFeedback(payload) {

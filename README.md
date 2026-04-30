@@ -28,7 +28,13 @@
 
 ## 🚀 Quick Start
 
-처음 프로젝트를 받은 뒤 루트 디렉터리에서 아래 명령을 실행합니다.
+처음 프로젝트를 받은 뒤 루트 디렉터리에서 아래 명령만 실행하면 **시드 데이터 기반 데모 화면을 바로 확인**할 수 있습니다.
+
+이 Quick Start는 발표/시연용 기본 실행 흐름입니다.
+
+- Fitbit 계정, Fitbit API 토큰, Raspberry Pi, DHT11, MQ-5 센서가 없어도 실행됩니다.
+- `npm run seed-demo`가 시연용 Fitbit/센서/수면/피드백 데이터를 DB에 넣습니다.
+- Ollama는 선택 사항입니다. 자연어 피드백을 확장하고 싶을 때만 설정합니다.
 
 ```bash
 npm install
@@ -40,7 +46,14 @@ npm run dev
 
 실행 후 브라우저에서 `http://localhost:3000`으로 접속합니다.
 
-Raspberry Pi 센서 수집 기능을 개발할 때만 해당 환경에서 `npm install i2c-bus`를 별도로 실행합니다.
+선택적으로 더 자연스러운 설명형 문구를 생성하려면 Ollama를 설치한 뒤 `.env`에서 `SLM_ENDPOINT`, `SLM_MODEL`을 설정합니다.
+
+```bash
+ollama pull gemma4:e4b
+ollama serve
+```
+
+Raspberry Pi 센서 수집 기능을 실제 장비에서 개발할 때만 해당 환경에서 `npm install i2c-bus`를 별도로 실행합니다.
 
 자세한 실행 방법은 [HOW_TO_RUN.md](./HOW_TO_RUN.md)를 참고합니다.
 

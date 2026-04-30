@@ -163,15 +163,15 @@ processing/
 
 ### 4-6. `slm/`
 
-`slm/`은 rule-based 판단 결과를 **사용자가 이해하기 쉬운 자연어 피드백으로 변환**합니다.
+`slm/`은 분석 판단 결과를 **사용자가 이해하기 쉬운 자연어 피드백으로 변환**합니다.
 
-현재 구조에서는 로컬 Ollama를 SLM 서버로 사용하며, 서버가 없을 경우 rule-based 결과 문자열로 자동 fallback합니다.
+현재 구조에서는 로컬 Ollama를 SLM 서버로 사용할 수 있으며, SLM 설정이 없으면 기본 분석 결과를 사용합니다.
 
-데이터가 충분히 쌓이지 않은 초기(cold start)에는 SLM이 원시 센서값을 직접 해석하고, 7일 이상 데이터가 누적되면 rule-based 판단 결과를 다듬는 역할로 전환합니다.
+데이터가 충분히 쌓이지 않은 초기(cold start)에는 SLM이 원시 센서값을 직접 해석하고, 7일 이상 데이터가 누적되면 분석 판단 결과를 다듬는 역할로 전환합니다.
 
 예상 파일:
-- `slm_client.js` — Ollama HTTP 클라이언트, 타임아웃 및 fallback 처리
-- `prompt_builder.js` — rule-based 결과를 한국어 프롬프트로 변환 (순수 함수)
+- `slm_client.js` — Ollama HTTP 클라이언트 및 타임아웃 처리
+- `prompt_builder.js` — 분석 결과를 한국어 프롬프트로 변환 (순수 함수)
 
 ### 4-7. 데모 및 검증 파일
 

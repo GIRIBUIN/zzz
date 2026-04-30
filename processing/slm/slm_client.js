@@ -1,8 +1,12 @@
-const SLM_ENDPOINT = process.env.SLM_ENDPOINT || "http://localhost:11434";
-const SLM_MODEL    = process.env.SLM_MODEL    || "gemma4:e4b";
+const SLM_ENDPOINT = process.env.SLM_ENDPOINT;
+const SLM_MODEL    = process.env.SLM_MODEL;
 const SLM_TIMEOUT  = Number(process.env.SLM_TIMEOUT_MS) || 30000;
 
 async function callSlm(prompt) {
+  if (!SLM_ENDPOINT || !SLM_MODEL) {
+    return null;
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SLM_TIMEOUT);
   try {

@@ -21,10 +21,13 @@ ZZZ는 On-Premise 방식의 스마트 헬스케어 시스템으로 개발 중이
 
 선택:
 - SQLite 확인 도구(DB 브라우저 등)
+- Ollama
 - Raspberry Pi
 - DHT11 센서
 - MQ-5 + ADC 모듈
 - Fitbit 계정 및 API 연동 정보
+
+기본 시연은 `npm run seed-demo`로 넣는 시드 데이터를 사용합니다. 따라서 교수자/평가자가 README 또는 이 문서의 Quick Start만 따라 실행하는 경우에는 Fitbit 연동 정보, Raspberry Pi, 센서 장비, Ollama가 필요하지 않습니다.
 
 ---
 
@@ -56,7 +59,8 @@ PRESLEEP_WINDOW_MINUTES=60
 PATTERN_WINDOW_DAYS=7
 PORT=3000
 
-# SLM (Ollama) — 주석 해제 시 활성화 / ollama pull gemma4:e4b && ollama serve
+# 선택: SLM(Ollama) 기반 자연어 피드백
+# 사용하려면 Ollama 설치 후 `ollama pull gemma4:e4b`, `ollama serve`를 실행하고 아래 값을 주석 해제합니다.
 # SLM_ENDPOINT=http://localhost:11434
 # SLM_MODEL=gemma4:e4b
 # SLM_TIMEOUT_MS=30000
@@ -138,10 +142,8 @@ npm run dev
 
 프론트 화면을 빠르게 확인하려면 더미 데이터를 먼저 넣는 것이 편합니다.
 
-이 단계는 **현재 개발 및 UI 확인용 임시 절차**입니다.  
-즉, 지금은 화면 확인을 위해 `seed-demo`를 사용하지만,  
-이후 실제 센서 수집 / Fitbit 연동 / 예측 및 분석 파이프라인이 연결되면  
-운영 흐름에서는 더미 데이터를 넣지 않고 실제 적재 데이터로 화면을 확인하게 됩니다.
+이 단계는 **현재 발표/시연 및 UI 확인용 기본 절차**입니다.  
+`seed-demo`가 Fitbit, 환경 센서, 수면 결과, 사용자 피드백, 패턴 데이터를 함께 넣기 때문에 실제 센서 수집이나 Fitbit API 연결 없이도 주요 화면과 분석 흐름을 확인할 수 있습니다. 이후 운영 흐름에서는 더미 데이터를 넣지 않고 실제 적재 데이터로 화면을 확인하게 됩니다.
 
 아래 명령은 7일치 시연 흐름을 기준으로 테스트용 데이터를 넣습니다.
 

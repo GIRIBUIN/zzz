@@ -125,25 +125,12 @@ npm run init-db
 
 ---
 
-## 7. 서비스 실행
+## 7. UI 테스트용 시드 데이터 넣기
 
-서비스 계층은 `service/server.js`를 기준으로 실행되고,  
-실행 스크립트는 루트 `package.json`에서 관리합니다.
-
-루트 기준 실행 예시는 다음과 같습니다.
-
-```bash
-npm run dev
-```
-
----
-
-## 8. UI 테스트용 더미 데이터 넣기
-
-프론트 화면을 빠르게 확인하려면 더미 데이터를 먼저 넣는 것이 편합니다.
+프론트 화면을 빠르게 확인하려면 시드 데이터를 먼저 넣는 것이 편합니다.
 
 이 단계는 **현재 발표/시연 및 UI 확인용 기본 절차**입니다.  
-`seed-demo`가 Fitbit, 환경 센서, 수면 결과, 사용자 피드백, 패턴 데이터를 함께 넣기 때문에 실제 센서 수집이나 Fitbit API 연결 없이도 주요 화면과 분석 흐름을 확인할 수 있습니다. 이후 운영 흐름에서는 더미 데이터를 넣지 않고 실제 적재 데이터로 화면을 확인하게 됩니다.
+`seed-demo`가 Fitbit, 환경 센서, 수면 결과, 사용자 피드백, 패턴 데이터를 함께 넣기 때문에 실제 센서 수집이나 Fitbit API 연결 없이도 주요 화면과 분석 흐름을 확인할 수 있습니다. 이후 운영 흐름에서는 실제 적재 데이터로 화면을 확인하게 됩니다.
 
 아래 명령은 7일치 시연 흐름을 기준으로 테스트용 데이터를 넣습니다.
 
@@ -165,11 +152,26 @@ npm run seed-demo
 오늘 데이터는 취침 전 예측 시연을 위해 최근 1시간 기준으로 들어갑니다.
 오늘 수면 결과는 아직 없는 상태로 둡니다.
 
-테스트가 끝난 뒤 더미 데이터를 지우고 싶으면 아래 명령을 사용합니다.
+테스트가 끝난 뒤 시드 데이터를 지우고 싶으면 아래 명령을 사용합니다.
 
 ```bash
 npm run cleanup-demo
 ```
+
+---
+
+## 8. 서비스 실행
+
+서비스 계층은 `service/server.js`를 기준으로 실행되고,
+실행 스크립트는 루트 `package.json`에서 관리합니다.
+
+루트 기준 실행 예시는 다음과 같습니다.
+
+```bash
+npm run dev
+```
+
+---
 
 ## 9. 서비스 접속 확인
 
@@ -181,13 +183,14 @@ npm run cleanup-demo
 http://localhost:3000
 ```
 
-현재 기준으로 확인 가능한 페이지:
+현재 기준으로 확인 가능한 화면/API:
 
 - `/`
 - `/presleep.html`
 - `/postsleep.html`
 - `/result.html`
 - `/result/latest`
+- `/result/sleep-score-history?limit=7`
 
 ---
 
@@ -313,7 +316,7 @@ db.get(`
 - DB 스키마 확인
 - DB 초기화 실행
 - Express 서버 실행
-- 더미 데이터 적재 / 정리
+- 시드 데이터 적재 / 정리
 - 로컬 접속 확인
 - Health check 응답 확인
 - Overview 화면의 summary / environment / sleep score trend 확인
@@ -322,18 +325,6 @@ db.get(`
 - feedback 입력 / 저장 / 수정 동작 확인
 - latest result 조회 확인
 - Result 화면의 feedback / prediction / sleep score / analysis 확인
-
-## 12. 추후 추가 예정
-
-아래 항목은 구현이 진행되면 이 문서에 추가합니다.
-
-- Raspberry Pi 센서 수집 실행 절차
-- Fitbit API 실제 연동 절차
-- API 테스트 예시 확장
-- Presleep 화면 사용 절차
-- 결과 조회 화면 사용 절차
-
----
 
 ## 📚 관련 문서
 

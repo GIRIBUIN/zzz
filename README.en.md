@@ -28,7 +28,13 @@
 
 ## 🚀 Quick Start
 
-After cloning the project, run the following commands from the project root.
+After cloning the project, run the following commands from the project root to open the **seed-data demo**.
+
+This Quick Start is the default demo flow for presentation and review.
+
+- No Fitbit account, Fitbit API token, Raspberry Pi, DHT11, or MQ-5 sensor is required.
+- `npm run seed-demo` inserts demo Fitbit, sensor, sleep, feedback, and pattern data into SQLite.
+- Ollama is optional and is only needed when extending natural-language feedback.
 
 ```bash
 npm install
@@ -39,6 +45,13 @@ npm run dev
 ```
 
 Then open `http://localhost:3000` in your browser.
+
+Optionally, install Ollama and set `SLM_ENDPOINT` and `SLM_MODEL` in `.env` to generate richer natural-language feedback.
+
+```bash
+ollama pull gemma4:e4b
+ollama serve
+```
 
 Install `i2c-bus` separately only when developing Raspberry Pi sensor collection on the Raspberry Pi environment.
 
@@ -165,16 +178,6 @@ In the long term, the project aims for:
 
 ---
 
-## 🚀 Future Expansion
-
-- [ ] Improved dashboard UI/UX
-- [ ] AWS-based storage and processing pipeline expansion
-- [ ] Stronger explanation-oriented feedback layer
-- [ ] Automatic scheduling and device-state monitoring
-- [ ] More advanced user-specific pattern adjustment logic
-
----
-
 ## 📚 Documentation
 
 More details about the project structure, execution flow, and layer responsibilities are available in the documents below.
@@ -187,7 +190,7 @@ More details about the project structure, execution flow, and layer responsibili
 [![Processing Layer](https://img.shields.io/badge/Processing_Layer-2563EB?style=for-the-badge)](./processing/README.md)
 [![Service Layer](https://img.shields.io/badge/Service_Layer-2563EB?style=for-the-badge)](./service/README.md)
 [![Storage Layer](https://img.shields.io/badge/Storage_Layer-2563EB?style=for-the-badge)](./storage/README.md)
-[![Korean README](https://img.shields.io/badge/English_README-2563EB?style=for-the-badge)](./README.md)
+[![Korean README](https://img.shields.io/badge/Korean_README-2563EB?style=for-the-badge)](./README.md)
 
 ---
 

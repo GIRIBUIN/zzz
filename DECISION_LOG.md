@@ -3,8 +3,7 @@
 이 문서는 ZZZ 프로젝트를 구현하면서 정한 **현재 기준의 설계 결정**을 기록하는 문서입니다.
 
 README나 구조 문서가 프로젝트 소개와 폴더 역할 설명을 담당한다면,  
-이 문서는 **왜 지금 이렇게 구현했는지**, **어디까지 단순화했는지**,  
-**나중에 어떻게 확장할지**를 적어두는 용도로 씁니다.
+이 문서는 **왜 지금 이렇게 구현했는지**와 **현재 실행 기준에서 어떤 정책을 사용하는지**를 적어두는 용도로 씁니다.
 
 ---
 
@@ -38,6 +37,7 @@ README나 구조 문서가 프로젝트 소개와 폴더 역할 설명을 담당
 - `GET /health`
 - `POST /predict/presleep`
 - `GET /result/latest`
+- `GET /result/sleep-score-history`
 - `POST /feedback`
 
 ### 왜 이렇게 시작했는가
@@ -47,30 +47,18 @@ README나 구조 문서가 프로젝트 소개와 폴더 역할 설명을 담당
 처음부터 지나치게 잘게 나눈 REST 구조를 가져가기보다,  
 서비스의 핵심 흐름을 기준으로 단순하고 분명한 endpoint를 먼저 열어 두는 쪽이 낫다고 봤습니다.
 
-### 나중 확장 방향
-
-이후 기능이 늘어나면 아래처럼 나눌 수 있습니다.
-
-- `GET /result?sleep_date=YYYY-MM-DD`
-- `GET /sleep-score/latest`
-- `GET /analysis/latest`
-- `POST /predict/postsleep`
-
-즉 지금 API는 **시작점**이고,  
-결과 종류와 조회 조건이 늘어나면 점진적으로 분리합니다.
-
----
-
 ## 3. Feedback handling policy
 
 `user_feedback`는 **한 날짜당 하나의 대표 만족도 점수만 저장**합니다.
 
 현재 정책은 아래와 같습니다.
 
-- `sleep_date` 기준으로 하루에 하나의 feedback만 유지
+- API 요청의 `sleep_date`는 UI 입력 기준의 기상일로 받음
+- 서버 내부에서는 기상일의 전날을 실제 수면 날짜로 매핑함
+- 내부 `sleep_date` 기준으로 하루에 하나의 feedback만 유지
 - 같은 날짜를 다시 입력하면 새 row를 추가하지 않고 기존 row 수정
 - 같은 날짜에 같은 점수를 다시 입력하면 DB 수정 없이 `no_change`
-- `sleep_date`는 오늘과 과거만 허용, 미래 날짜는 허용하지 않음
+- 기상일은 오늘과 과거만 허용, 미래 날짜는 허용하지 않음
 
 ### 왜 이렇게 했는가
 
@@ -103,7 +91,7 @@ README나 구조 문서가 프로젝트 소개와 폴더 역할 설명을 담당
 
 ## 5. Feedback and pattern update separation
 
-현재 단계에서는 `POST /feedback`가 **feedback 저장/수정만 처리**합니다.
+`POST /feedback`는 feedback 저장/수정 후 후속 계산 흐름을 연결합니다.
 
 즉:
 
@@ -120,14 +108,14 @@ API 책임이 커지고 구조도 금방 복잡해집니다.
 
 ---
 
-## 6. Current scope vs later scope
+## 6. Current scope
 
 현재 실제로 확인된 범위는 아래와 같습니다.
 
 - localhost 실행
 - health check 응답
 - DB 초기화
-- 데모 데이터 적재 / 정리
+- 시드 데이터 적재 / 정리
 - feedback 입력
 - 같은 날짜 재입력 시 수정
 - 같은 값 재입력 시 no change
@@ -137,18 +125,6 @@ API 책임이 커지고 구조도 금방 복잡해집니다.
 - Sleep Score 계산 결과 연결
 - post analysis 연결
 - pattern update 후속 반영
-
-아직 구현되지 않았거나 후속 단계인 항목은 아래와 같습니다.
-
-- 실제 Fitbit 데이터 수집
-- 실제 센서 데이터 수집
-- 실제 장치 환경에서의 Raspberry Pi 센서 수집 안정화
-- 실제 사용자 데이터 기반 개인화 로직 고도화
-
-즉 현재 프로젝트는  
-**서비스 화면과 주요 API 흐름을 연결하고, 실제 수집 안정화와 개인화 고도화를 앞둔 단계**로 봅니다.
-
----
 
 ## 7. 문서화 원칙
 
@@ -161,8 +137,8 @@ API 책임이 커지고 구조도 금방 복잡해집니다.
 - `HOW_TO_RUN.md`
   - 실제 실행 가능한 절차
 - `DECISION_LOG.md`
-  - 구현 중 정한 정책과 확장 방향
+  - 구현 중 정한 정책
 - `API_PLAN.md`
-  - 현재 endpoint와 확장 예정 API 구조
+  - 현재 endpoint와 API 구조
 
 즉 소개 / 구조 / 실행 / 결정 / API 계획을 역할별로 나눠 둡니다.

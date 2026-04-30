@@ -111,26 +111,10 @@ service/
 - `GET /health`
 - `POST /predict/presleep`
 - `GET /result/latest`
+- `GET /result/sleep-score-history`
 - `POST /feedback`
 
 이 구조는 지금 서비스 흐름에서 가장 먼저 필요한 것만 잡아 둔 상태입니다.
-
-#### 확장 방향
-
-지금 API는 시작점에 가깝습니다.  
-기능이 늘어나면 아래처럼 나눌 수 있습니다.
-
-- 날짜 기준 결과 조회
-  - `GET /result?sleep_date=YYYY-MM-DD`
-- 결과 종류 분리
-  - `GET /sleep-score/latest`
-  - `GET /analysis/latest`
-- 예측 종류 확장
-  - `POST /predict/postsleep`
-- 사용자/세션 기준 확장
-
-즉 지금은 최소 구조로 열어두고,  
-나중에 결과 종류나 조회 조건이 늘어나면 그때 세분화합니다.
 
 ---
 
@@ -305,21 +289,10 @@ service -> storage
 
 ---
 
-## 8. 미래 구조와의 관계
+## 8. 구조 기준
 
-현재는 On-Premise 단계라  
-`service/`는 로컬 환경에서 실행되는 Express 서버 계층입니다.
-
-나중에는 이 계층이 더 분명하게 나뉠 수 있습니다.
-
-예를 들면:
-
-- API 서버는 EC2 기반 서비스 계층으로 확장
-- 대시보드는 별도 프론트 구조와 연결
-- 설명형 피드백 계층 강화
-
-즉 지금은 로컬 서버지만,  
-나중에는 **클라우드 서비스/API 계층으로 자연스럽게 커질 수 있는 구조**를 생각하고 있습니다.
+현재는 On-Premise 단계라 `service/`는 로컬 환경에서 실행되는 Express 서버 계층입니다.
+API와 대시보드를 같은 서버에서 제공하되, 요청 처리와 계산 로직은 계층을 분리해서 관리합니다.
 
 ---
 
@@ -340,10 +313,7 @@ service -> storage
 ## 10. API 설계 메모
 
 현재 `service/` 계층 API는  
-최소 실행 가능한 구조를 먼저 열어 두는 쪽으로 가고 있습니다.
-
-그래서 지금은 단순하고 명확한 endpoint를 우선 쓰고,  
-기능이 늘어나면 결과 종류와 조회 조건에 따라 쪼개는 방향을 따릅니다.
+현재 화면과 시드 데이터 데모에서 사용하는 endpoint를 기준으로 유지합니다.
 
 ---
 

@@ -1,0 +1,200 @@
+Project aws_zzz {
+  database_type: "Amazon RDS"
+  Note: "ZZZ AWS expansion database schema"
+}
+
+Table users {
+  id integer [pk, increment]
+  login_id text [not null, unique]
+  password_hash text [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+}
+
+Table devices {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  iot_thing_name text [not null, unique]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id [name: "idx_devices_user_id"]
+  }
+}
+
+Table fitbit_accounts {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  fitbit_user_id text [not null]
+  access_token text [not null]
+  refresh_token text [not null]
+  token_expires_at text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id [name: "idx_fitbit_accounts_user_id"]
+    (user_id, fitbit_user_id) [unique, name: "uq_fitbit_accounts_user"]
+  }
+}
+
+Table sensor_raw {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  device_id integer [not null, ref: > devices.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  temperature real
+  humidity real
+  mq5_raw real
+  mq5_index real
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [name: "idx_sensor_raw_user_ts"]
+    device_id [name: "idx_sensor_raw_device_id"]
+  }
+}
+
+Table fitbit_heart {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  bpm integer [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_fitbit_heart_user_ts"]
+    fitbit_account_id [name: "idx_fitbit_heart_account_id"]
+  }
+}
+
+Table fitbit_steps {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  steps integer [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_fitbit_steps_user_ts"]
+    fitbit_account_id [name: "idx_fitbit_steps_account_id"]
+  }
+}
+
+Table fitbit_calories {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  calories real [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_fitbit_calories_user_ts"]
+    fitbit_account_id [name: "idx_fitbit_calories_account_id"]
+  }
+}
+
+Table fitbit_sleep {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
+  sleep_date text [not null, note: "YYYY-MM-DD"]
+  start_time text
+  end_time text
+  minutes_asleep integer
+  minutes_awake integer
+  deep_minutes integer
+  light_minutes integer
+  rem_minutes integer
+  is_main_sleep integer [note: "1=true, 0=false"]
+  raw_json text [note: "Original Fitbit sleep response snapshot"]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, sleep_date) [unique, name: "uq_fitbit_sleep_user_date"]
+    fitbit_account_id [name: "idx_fitbit_sleep_account_id"]
+  }
+}
+
+Table user_feedback {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  sleep_date text [not null]
+  satisfaction_score real [not null, note: "0-100"]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, sleep_date) [unique, name: "uq_user_feedback_user_date"]
+  }
+}
+
+Table prediction_result {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  prediction_ts text [not null, note: "Execution time"]
+  target_sleep_date text [note: "Intended sleep date"]
+  risk_level text [not null, note: "LOW / MEDIUM / HIGH"]
+  risk_score real
+  reasons_json text [note: "JSON array of reasons"]
+  action_text text
+  feature_snapshot_json text [note: "Features used at prediction time"]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, prediction_ts) [name: "idx_prediction_result_user_ts"]
+    (user_id, target_sleep_date) [name: "idx_prediction_result_user_target_date"]
+  }
+}
+
+Table sleep_score_result {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  sleep_date text [not null]
+  time_asleep_score real
+  deep_rem_score real
+  restoration_score real
+  total_score real
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, sleep_date) [unique, name: "uq_sleep_score_result_user_date"]
+  }
+}
+
+Table post_analysis_result {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  sleep_score_result_id integer [ref: > sleep_score_result.id]
+  sleep_date text [not null]
+  causes_json text [note: "JSON array of causes"]
+  analysis_text text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, sleep_date) [unique, name: "uq_post_analysis_result_user_date"]
+    sleep_score_result_id [name: "idx_post_analysis_result_score_id"]
+  }
+}
+
+Table pattern_profile {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  sleep_date text [note: "YYYY-MM-DD"]
+  stage text [note: "stage1 / stage2"]
+  updated_at text [not null]
+  avg_sleep_minutes real
+  avg_satisfaction real
+  avg_presleep_hr real
+  score_gap_trend real [note: "Objective vs subjective trend"]
+  env_sensitivity_json text
+  pattern_snapshot_json text
+
+  indexes {
+    (user_id, updated_at) [name: "idx_pattern_profile_user_updated_at"]
+    (user_id, sleep_date, stage) [unique, name: "uq_pattern_profile_user_sleep_date_stage"]
+  }
+}

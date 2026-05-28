@@ -12,6 +12,7 @@ const { computePresleepRisk }    = require("./prediction/prediction");
 const { kstIsoLocal } = require("../utils/time");
 
 const SNAPSHOT_PATH = path.join(__dirname, "demo_data", "snapshot.json");
+const DEMO_USER_ID = 1;
 
 function section(title) {
   console.log("\n" + "=".repeat(52));
@@ -33,7 +34,7 @@ async function main() {
   section("A. Feature Extraction — 실 DB 데이터 기준");
   info("1h window since (KST)", sinceIso);
 
-  const features = await buildPresleepFeatures(sinceIso);
+  const features = await buildPresleepFeatures(DEMO_USER_ID, sinceIso);
   info("avg_hr_1h",          features.avg_hr_1h);
   info("max_hr_1h",          features.max_hr_1h);
   info("steps_sum_1h",       features.steps_sum_1h);

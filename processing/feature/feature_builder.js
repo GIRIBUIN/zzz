@@ -15,49 +15,76 @@ function dbAll(sql, params) {
   });
 }
 
+function normalizeArgs(userIdOrSinceIso, maybeSinceIso) {
+  const legacyCall = maybeSinceIso === undefined;
+  const userId = legacyCall ? 1 : Number(userIdOrSinceIso);
+  const sinceIso = legacyCall ? userIdOrSinceIso : maybeSinceIso;
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new Error("user_id must be a positive integer");
+  }
+
+  if (!sinceIso) {
+    throw new Error("sinceIso is required");
+  }
+
+  return { userId, sinceIso };
+}
+
 // sinceIso: ISO 8601 string marking the start of the 1-hour window
-async function buildPresleepFeatures(sinceIso) {
+async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
+  const { userId, sinceIso } = normalizeArgs(userIdOrSinceIso, maybeSinceIso);
   const [heartRow, stepsRow, sensorRow, sleepRows, latestPattern, lowSatRow, caloriesRow] = await Promise.all([
     dbGet(
-      `SELECT AVG(bpm) AS avg_hr_1h, MAX(bpm) AS max_hr_1h FROM fitbit_heart WHERE ts >= ?`,
-      [sinceIso]
+      `SELECT AVG(bpm) AS avg_hr_1h, MAX(bpm) AS max_hr_1h
+       FROM fitbit_heart
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ),
     dbGet(
-      `SELECT COALESCE(SUM(steps), 0) AS steps_sum_1h FROM fitbit_steps WHERE ts >= ?`,
-      [sinceIso]
+      `SELECT COALESCE(SUM(steps), 0) AS steps_sum_1h
+       FROM fitbit_steps
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ),
     dbGet(
       `SELECT AVG(temperature) AS avg_temp_1h,
               AVG(humidity)    AS avg_humidity_1h,
               AVG(mq5_index)   AS avg_mq5_index_1h,
               MAX(mq5_raw)     AS max_mq5_raw_1h
-       FROM sensor_raw WHERE ts >= ?`,
-      [sinceIso]
+       FROM sensor_raw
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ),
     dbAll(
       `SELECT minutes_asleep FROM fitbit_sleep
-       WHERE is_main_sleep = 1
+       WHERE user_id = ? AND is_main_sleep = 1
        ORDER BY sleep_date DESC LIMIT ?`,
-      [RECENT_N_DAYS]
+      [userId, RECENT_N_DAYS]
     ),
     dbGet(
       `SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend
-       FROM pattern_profile ORDER BY updated_at DESC LIMIT 1`,
-      []
+       FROM pattern_profile
+       WHERE user_id = ?
+       ORDER BY updated_at DESC LIMIT 1`,
+      [userId]
     ),
     // Days in the last N days where risk was elevated AND satisfaction was low
     dbGet(
       `SELECT COUNT(DISTINCT pr.target_sleep_date) AS cnt
        FROM prediction_result pr
-       JOIN user_feedback uf ON pr.target_sleep_date = uf.sleep_date
-       WHERE pr.target_sleep_date >= ?
+       JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
+       WHERE pr.user_id = ?
+         AND pr.target_sleep_date >= ?
          AND uf.satisfaction_score < 50
          AND pr.risk_level IN ('MEDIUM', 'HIGH')`,
-      [kstDateDaysAgo(RECENT_N_DAYS)]
+      [userId, kstDateDaysAgo(RECENT_N_DAYS)]
     ),
     dbGet(
-      `SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h FROM fitbit_calories WHERE ts >= ?`,
-      [sinceIso]
+      `SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h
+       FROM fitbit_calories
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ).catch(() => null)  // defensive: returns null if table not yet populated
   ]);
 
@@ -76,7 +103,7 @@ async function buildPresleepFeatures(sinceIso) {
   }
 
   return {
-    user_id:                "user-01",
+    user_id:                userId,
     target_sleep_date:      kstDateString(),
     avg_hr_1h:              heartRow?.avg_hr_1h  ?? null,
     max_hr_1h:              heartRow?.max_hr_1h  ?? null,

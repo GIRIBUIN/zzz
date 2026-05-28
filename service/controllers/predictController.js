@@ -34,8 +34,7 @@ async function postPresleepPrediction(req, res) {
     }
 
     const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
-    const snapshot = await buildPresleepFeatures(sinceIso);
-    snapshot.user_id = userId;
+    const snapshot = await buildPresleepFeatures(userId, sinceIso);
     console.log("[predictController] feature snapshot:", snapshot);
 
     if (!hasStoredPresleepData(snapshot)) {

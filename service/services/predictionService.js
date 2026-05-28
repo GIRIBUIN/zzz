@@ -13,11 +13,17 @@ function savePredictionResult(payload, predictionResult) {
     const predictionTs = kstIsoLocal();
     const createdAt = new Date().toISOString();
     const targetSleepDate = payload?.target_sleep_date || getTargetSleepDate();
+    const userId = Number(payload?.user_id);
     const reasonsJson = JSON.stringify(predictionResult.reasons || []);
     const snapshotJson = JSON.stringify(payload || {});
 
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return reject(new Error("user_id must be a positive integer"));
+    }
+
     const insertQuery = `
       INSERT INTO prediction_result (
+        user_id,
         prediction_ts,
         target_sleep_date,
         risk_level,
@@ -27,12 +33,13 @@ function savePredictionResult(payload, predictionResult) {
         feature_snapshot_json,
         created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.run(
       insertQuery,
       [
+        userId,
         predictionTs,
         targetSleepDate,
         predictionResult.risk_level,
@@ -49,6 +56,7 @@ function savePredictionResult(payload, predictionResult) {
 
         return resolve({
           id: this.lastID,
+          user_id: userId,
           prediction_ts: predictionTs,
           target_sleep_date: targetSleepDate,
           risk_level: predictionResult.risk_level,

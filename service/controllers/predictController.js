@@ -2,6 +2,7 @@ const { executePresleepPrediction } = require("../services/predictionService");
 const { collectPresleep } = require("../../rpi/fitbit/collect_fitbit");
 const { buildPresleepFeatures } = require("../../processing/feature/feature_builder");
 const { kstIsoLocal } = require("../../utils/time");
+const { requireUserIdFromRequest } = require("../utils/userContext");
 
 function hasStoredPresleepData(snapshot) {
   return (
@@ -14,13 +15,14 @@ function hasStoredPresleepData(snapshot) {
 
 async function postPresleepPrediction(req, res) {
   try {
+    const userId = await requireUserIdFromRequest(req);
     let collectionWarning = null;
     const skipCollect = req.query.skip_collect === 'true';
 
     if (!skipCollect) {
       try {
         console.log("[predictController] Fitbit 데이터 수집 시작");
-        await collectPresleep();
+        await collectPresleep({ user_id: userId });
         console.log("[predictController] Fitbit 데이터 수집 완료");
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
@@ -33,6 +35,7 @@ async function postPresleepPrediction(req, res) {
 
     const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
     const snapshot = await buildPresleepFeatures(sinceIso);
+    snapshot.user_id = userId;
     console.log("[predictController] feature snapshot:", snapshot);
 
     if (!hasStoredPresleepData(snapshot)) {
@@ -62,7 +65,10 @@ async function postPresleepPrediction(req, res) {
     });
   } catch (error) {
     console.error("[predictController] 오류:", error.message);
-    return res.status(500).json({
+    const statusCode = error.message === "user not found" || error.message.includes("user_id")
+      ? 400
+      : 500;
+    return res.status(statusCode).json({
       status: "error",
       message: error.message
     });

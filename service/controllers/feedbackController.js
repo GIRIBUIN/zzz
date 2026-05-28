@@ -1,4 +1,5 @@
 const { saveFeedback } = require("../services/feedbackService");
+const { requireUserIdFromRequest } = require("../utils/userContext");
 
 function addIfPresent(target, key, value) {
   if (value !== null && value !== undefined) {
@@ -8,7 +9,8 @@ function addIfPresent(target, key, value) {
 
 async function postFeedback(req, res) {
   try {
-    const result = await saveFeedback(req.body);
+    const userId = await requireUserIdFromRequest(req);
+    const result = await saveFeedback({ ...req.body, user_id: userId });
     const logPayload = {
       id: result.id,
       sleep_date: result.sleep_date,

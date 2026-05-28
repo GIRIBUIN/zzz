@@ -54,6 +54,10 @@ function validateCredentials(loginId, password) {
     throw new Error("password must be at least 4 characters");
   }
 
+  if (normalizedPassword.length > 256) {
+    throw new Error("password is too long");
+  }
+
   return {
     loginId: normalizedLoginId,
     password: normalizedPassword

@@ -12,7 +12,12 @@ const { kstDateString, previousDateString } = require("../../utils/time");
 
 function saveFeedbackRecord(payload) {
   return new Promise((resolve, reject) => {
-    const { sleep_date: inputDate, satisfaction_score } = payload || {};
+    const { user_id, sleep_date: inputDate, satisfaction_score } = payload || {};
+    const userId = Number(user_id);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return reject(new Error("user_id must be a positive integer"));
+    }
 
     if (!inputDate) {
       return reject(new Error("wake_date is required"));
@@ -52,11 +57,11 @@ function saveFeedbackRecord(payload) {
     const selectQuery = `
       SELECT id, satisfaction_score
       FROM user_feedback
-      WHERE sleep_date = ?
+      WHERE user_id = ? AND sleep_date = ?
       LIMIT 1
     `;
 
-    db.get(selectQuery, [sleep_date], (selectErr, row) => {
+    db.get(selectQuery, [userId, sleep_date], (selectErr, row) => {
       if (selectErr) {
         return reject(selectErr);
       }
@@ -69,6 +74,7 @@ function saveFeedbackRecord(payload) {
             message: "feedback unchanged",
             action: "no_change",
             id: row.id,
+            user_id: userId,
             wake_date,
             sleep_date,
             satisfaction_score: score
@@ -91,6 +97,7 @@ function saveFeedbackRecord(payload) {
             message: "feedback updated",
             action: "update",
             id: row.id,
+            user_id: userId,
             wake_date,
             sleep_date,
             satisfaction_score: score,
@@ -100,11 +107,11 @@ function saveFeedbackRecord(payload) {
       } else {
         // 없으면 insert
         const insertQuery = `
-          INSERT INTO user_feedback (sleep_date, satisfaction_score, created_at)
-          VALUES (?, ?, ?)
+          INSERT INTO user_feedback (user_id, sleep_date, satisfaction_score, created_at)
+          VALUES (?, ?, ?, ?)
         `;
 
-        db.run(insertQuery, [sleep_date, score, now], function (insertErr) {
+        db.run(insertQuery, [userId, sleep_date, score, now], function (insertErr) {
           if (insertErr) {
             return reject(insertErr);
           }
@@ -113,6 +120,7 @@ function saveFeedbackRecord(payload) {
             message: "feedback saved",
             action: "insert",
             id: this.lastID,
+            user_id: userId,
             wake_date,
             sleep_date,
             satisfaction_score: score,
@@ -130,7 +138,7 @@ async function saveFeedback(payload) {
   let pattern = null;
 
   try {
-    sleepScore = await ensureSleepScoreForDate(result.sleep_date);
+    sleepScore = await ensureSleepScoreForDate(result.user_id, result.sleep_date);
   } catch (error) {
     console.error("[feedbackService] sleep score ensure failed:", error.message);
     sleepScore = {
@@ -149,8 +157,9 @@ async function saveFeedback(payload) {
 
   if (shouldUpdatePattern) {
     try {
-      const stage1 = await updatePatternStage1(result.sleep_date);
+      const stage1 = await updatePatternStage1(result.user_id, result.sleep_date);
       const stage2 = await updatePatternStage2(
+        result.user_id,
         result.sleep_date,
         result.satisfaction_score,
         scoreTotal
@@ -200,7 +209,7 @@ async function saveFeedback(payload) {
   const shouldGenerateAnalysis =
     result.action === "insert" ||
     result.action === "update" ||
-    !(await hasPostAnalysis(result.sleep_date));
+    !(await hasPostAnalysis(result.user_id, result.sleep_date));
 
   if (!shouldGenerateAnalysis) {
     return {
@@ -216,6 +225,7 @@ async function saveFeedback(payload) {
 
   try {
     const postAnalysis = await generatePostAnalysisForDate(
+      result.user_id,
       result.sleep_date,
       result.satisfaction_score
     );

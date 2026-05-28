@@ -30,7 +30,7 @@ function getLatestRow(query, params = []) {
   });
 }
 
-async function getLatestResult() {
+async function getLatestResult(userId) {
   const [
     latestFeedback,
     latestPredictionRow,
@@ -39,34 +39,44 @@ async function getLatestResult() {
     latestEnvironment
   ] = await Promise.all([
     getLatestRow(
-      `SELECT id, sleep_date, satisfaction_score, created_at
+      `SELECT id, user_id, sleep_date, satisfaction_score, created_at
        FROM user_feedback
+       WHERE user_id = ?
        ORDER BY id DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [userId]
     ),
     getLatestRow(
-      `SELECT id, prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at
+      `SELECT id, user_id, prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at
        FROM prediction_result
+       WHERE user_id = ?
        ORDER BY id DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [userId]
     ),
     getLatestRow(
-      `SELECT id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at
+      `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at
        FROM sleep_score_result
+       WHERE user_id = ?
        ORDER BY id DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [userId]
     ),
     getLatestRow(
-      `SELECT id, sleep_date, causes_json, analysis_text, created_at
+      `SELECT id, user_id, sleep_date, causes_json, analysis_text, created_at
        FROM post_analysis_result
+       WHERE user_id = ?
        ORDER BY id DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [userId]
     ),
     getLatestRow(
-      `SELECT id, ts, temperature, humidity, mq5_index, created_at
+      `SELECT id, user_id, device_id, ts, temperature, humidity, mq5_index, created_at
        FROM sensor_raw
+       WHERE user_id = ?
        ORDER BY ts DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [userId]
     )
   ]);
 
@@ -93,14 +103,15 @@ async function getLatestResult() {
   };
 }
 
-function getSleepScoreHistory(limit = 7) {
+function getSleepScoreHistory(userId, limit = 7) {
   return new Promise((resolve, reject) => {
     db.all(
       `SELECT sleep_date, total_score
        FROM sleep_score_result
+       WHERE user_id = ?
        ORDER BY sleep_date DESC
        LIMIT ?`,
-      [limit],
+      [userId, limit],
       (err, rows) => {
         if (err) return reject(err);
 

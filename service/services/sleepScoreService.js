@@ -27,40 +27,50 @@ function todayStr() {
   return kstDateString();
 }
 
-async function getSleepScore(sleepDate) {
+async function getSleepScore(userId, sleepDate) {
   return dbGet(
-    `SELECT id, sleep_date, time_asleep_score, deep_rem_score,
+    `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score,
             restoration_score, total_score, created_at
      FROM sleep_score_result
-     WHERE sleep_date = ?
+     WHERE user_id = ? AND sleep_date = ?
      ORDER BY created_at DESC
      LIMIT 1`,
-    [sleepDate]
+    [userId, sleepDate]
   );
 }
 
-async function getSleepRow(sleepDate) {
+async function getSleepRow(userId, sleepDate) {
   return dbGet(
     `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
             deep_minutes, light_minutes, rem_minutes, is_main_sleep
      FROM fitbit_sleep
-     WHERE sleep_date = ?
+     WHERE user_id = ? AND sleep_date = ?
      ORDER BY created_at DESC
      LIMIT 1`,
-    [sleepDate]
+    [userId, sleepDate]
   );
 }
 
-async function getLatestPattern() {
+async function getLatestPattern(userId) {
   return dbGet(
     `SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend
      FROM pattern_profile
+     WHERE user_id = ?
      ORDER BY updated_at DESC
-     LIMIT 1`
+     LIMIT 1`,
+    [userId]
   );
 }
 
-async function saveFitbitSleepFromJson(sleepDate, sleepJson) {
+async function getDefaultFitbitAccountId(userId) {
+  const account = await dbGet(
+    `SELECT id FROM fitbit_accounts WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`,
+    [userId]
+  );
+  return account?.id ?? null;
+}
+
+async function saveFitbitSleepFromJson(userId, sleepDate, sleepJson) {
   const mainSleep = (sleepJson?.sleep ?? []).find((sleep) => sleep.isMainSleep);
   if (!mainSleep) {
     return {
@@ -71,9 +81,19 @@ async function saveFitbitSleepFromJson(sleepDate, sleepJson) {
 
   const levels = mainSleep.levels?.summary ?? {};
   const createdAt = new Date().toISOString();
+  const fitbitAccountId = await getDefaultFitbitAccountId(userId);
+
+  if (!fitbitAccountId) {
+    return {
+      action: "skipped",
+      reason: "fitbit account missing"
+    };
+  }
 
   await dbRun(
     `INSERT OR REPLACE INTO fitbit_sleep (
+      user_id,
+      fitbit_account_id,
       sleep_date,
       start_time,
       end_time,
@@ -86,8 +106,10 @@ async function saveFitbitSleepFromJson(sleepDate, sleepJson) {
       raw_json,
       created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     [
+      userId,
+      fitbitAccountId,
       sleepDate,
       mainSleep.startTime,
       mainSleep.endTime,
@@ -104,12 +126,13 @@ async function saveFitbitSleepFromJson(sleepDate, sleepJson) {
   return { action: "collected", created_at: createdAt };
 }
 
-async function saveSleepScore(sleepDate, scoreResult) {
+async function saveSleepScore(userId, sleepDate, scoreResult) {
   const createdAt = new Date().toISOString();
 
-  await dbRun(`DELETE FROM sleep_score_result WHERE sleep_date = ?`, [sleepDate]);
+  await dbRun(`DELETE FROM sleep_score_result WHERE user_id = ? AND sleep_date = ?`, [userId, sleepDate]);
   const insertResult = await dbRun(
     `INSERT INTO sleep_score_result (
+      user_id,
       sleep_date,
       time_asleep_score,
       deep_rem_score,
@@ -117,8 +140,9 @@ async function saveSleepScore(sleepDate, scoreResult) {
       total_score,
       created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?)`,
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
+      userId,
       sleepDate,
       scoreResult.time_asleep_score,
       scoreResult.deep_rem_score,
@@ -130,13 +154,14 @@ async function saveSleepScore(sleepDate, scoreResult) {
 
   return {
     id: insertResult.lastID,
+    user_id: userId,
     sleep_date: sleepDate,
     ...scoreResult,
     created_at: createdAt
   };
 }
 
-async function tryCollectSleep(sleepDate) {
+async function tryCollectSleep(userId, sleepDate) {
   if (sleepDate !== todayStr()) {
     return {
       action: "skipped",
@@ -147,7 +172,7 @@ async function tryCollectSleep(sleepDate) {
   try {
     console.log("[sleepScoreService] Fitbit sleep sync start");
     const sleepJson = await fetchSleep();
-    const result = await saveFitbitSleepFromJson(sleepDate, sleepJson);
+    const result = await saveFitbitSleepFromJson(userId, sleepDate, sleepJson);
     console.log("[sleepScoreService] Fitbit sleep sync result:", result.action);
     return result;
   } catch (error) {
@@ -159,8 +184,8 @@ async function tryCollectSleep(sleepDate) {
   }
 }
 
-async function ensureSleepScoreForDateInternal(sleepDate) {
-  const existingScore = await getSleepScore(sleepDate);
+async function ensureSleepScoreForDateInternal(userId, sleepDate) {
+  const existingScore = await getSleepScore(userId, sleepDate);
   if (existingScore) {
     return {
       action: "exists",
@@ -169,12 +194,12 @@ async function ensureSleepScoreForDateInternal(sleepDate) {
     };
   }
 
-  let sleepRow = await getSleepRow(sleepDate);
+  let sleepRow = await getSleepRow(userId, sleepDate);
   let collection = { action: "not_needed" };
 
   if (!sleepRow) {
-    collection = await tryCollectSleep(sleepDate);
-    sleepRow = await getSleepRow(sleepDate);
+    collection = await tryCollectSleep(userId, sleepDate);
+    sleepRow = await getSleepRow(userId, sleepDate);
   }
 
   if (!sleepRow) {
@@ -186,9 +211,9 @@ async function ensureSleepScoreForDateInternal(sleepDate) {
     };
   }
 
-  const patternProfile = await getLatestPattern();
+  const patternProfile = await getLatestPattern(userId);
   const scoreResult = calcSleepScore(sleepRow, patternProfile);
-  const savedScore = await saveSleepScore(sleepDate, scoreResult);
+  const savedScore = await saveSleepScore(userId, sleepDate, scoreResult);
 
   return {
     action: "created",
@@ -198,15 +223,19 @@ async function ensureSleepScoreForDateInternal(sleepDate) {
   };
 }
 
-async function ensureSleepScoreForDate(sleepDate) {
-  if (inflightEnsures.has(sleepDate)) {
-    return inflightEnsures.get(sleepDate);
+async function ensureSleepScoreForDate(userIdOrSleepDate, maybeSleepDate) {
+  const userId = maybeSleepDate === undefined ? 1 : userIdOrSleepDate;
+  const sleepDate = maybeSleepDate === undefined ? userIdOrSleepDate : maybeSleepDate;
+  const key = `${userId}:${sleepDate}`;
+
+  if (inflightEnsures.has(key)) {
+    return inflightEnsures.get(key);
   }
 
-  const ensurePromise = ensureSleepScoreForDateInternal(sleepDate).finally(() => {
-    inflightEnsures.delete(sleepDate);
+  const ensurePromise = ensureSleepScoreForDateInternal(userId, sleepDate).finally(() => {
+    inflightEnsures.delete(key);
   });
-  inflightEnsures.set(sleepDate, ensurePromise);
+  inflightEnsures.set(key, ensurePromise);
   return ensurePromise;
 }
 

@@ -27,12 +27,27 @@ function dbGet(sql, params = []) {
 }
 
 function requireFitbitConfig() {
-  const clientId = process.env.FITBIT_CLIENT_ID;
-  const clientSecret = process.env.FITBIT_CLIENT_SECRET;
-  const redirectUri = process.env.FITBIT_REDIRECT_URI;
+  const clientId = String(process.env.FITBIT_CLIENT_ID || "").trim();
+  const clientSecret = String(process.env.FITBIT_CLIENT_SECRET || "").trim();
+  const redirectUri = String(process.env.FITBIT_REDIRECT_URI || "").trim();
 
   if (!clientId || !clientSecret || !redirectUri) {
     throw new Error("FITBIT_CLIENT_ID / FITBIT_CLIENT_SECRET / FITBIT_REDIRECT_URI are required");
+  }
+
+  if (clientId.length > 256 || clientSecret.length > 512 || redirectUri.length > 2048) {
+    throw new Error("Fitbit OAuth config is too long");
+  }
+
+  let parsedRedirectUri;
+  try {
+    parsedRedirectUri = new URL(redirectUri);
+  } catch (error) {
+    throw new Error("FITBIT_REDIRECT_URI must be a valid URL");
+  }
+
+  if (!["http:", "https:"].includes(parsedRedirectUri.protocol)) {
+    throw new Error("FITBIT_REDIRECT_URI must use http or https");
   }
 
   return {
@@ -73,7 +88,13 @@ function createState(userId, clientSecret) {
 }
 
 function verifyState(state, clientSecret) {
-  const [payload, signature] = String(state || "").split(".");
+  const stateValue = String(state || "");
+
+  if (stateValue.length > 2048) {
+    throw new Error("invalid Fitbit OAuth state");
+  }
+
+  const [payload, signature] = stateValue.split(".");
 
   if (!payload || !signature) {
     throw new Error("invalid Fitbit OAuth state");
@@ -178,12 +199,25 @@ function postFitbitToken(params) {
 
 function tokenExpiresAt(expiresIn) {
   const seconds = Number(expiresIn || 0);
+
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    throw new Error("Fitbit token response has invalid expires_in");
+  }
+
   return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
 async function saveFitbitAccount(userId, tokenJson) {
   if (!tokenJson?.access_token || !tokenJson?.refresh_token || !tokenJson?.user_id) {
     throw new Error("Fitbit token response is missing required fields");
+  }
+
+  if (
+    String(tokenJson.access_token).length > 8192 ||
+    String(tokenJson.refresh_token).length > 8192 ||
+    String(tokenJson.user_id).length > 128
+  ) {
+    throw new Error("Fitbit token response field is too long");
   }
 
   const now = new Date().toISOString();
@@ -215,11 +249,18 @@ async function saveFitbitAccount(userId, tokenJson) {
 
 async function handleFitbitCallback(query) {
   if (query?.error) {
-    throw new Error(`Fitbit authorization failed: ${query.error}`);
+    const errorCode = String(query.error).slice(0, 120);
+    throw new Error(`Fitbit authorization failed: ${errorCode}`);
   }
 
-  if (!query?.code) {
+  const code = String(query?.code || "");
+
+  if (!code) {
     throw new Error("Fitbit authorization code is required");
+  }
+
+  if (code.length > 2048) {
+    throw new Error("Fitbit authorization code is too long");
   }
 
   const { clientSecret, redirectUri } = requireFitbitConfig();
@@ -228,7 +269,7 @@ async function handleFitbitCallback(query) {
 
   const tokenJson = await postFitbitToken({
     grant_type: "authorization_code",
-    code: query.code,
+    code,
     redirect_uri: redirectUri
   });
 

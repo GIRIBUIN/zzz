@@ -38,46 +38,55 @@ function withGapNote(analysis) {
     : analysis.analysis_text;
 }
 
-async function hasPostAnalysis(sleepDate) {
+async function hasPostAnalysis(userIdOrSleepDate, maybeSleepDate) {
+  const userId = maybeSleepDate === undefined ? 1 : userIdOrSleepDate;
+  const sleepDate = maybeSleepDate === undefined ? userIdOrSleepDate : maybeSleepDate;
   const row = await dbGet(
-    `SELECT id FROM post_analysis_result WHERE sleep_date = ? LIMIT 1`,
-    [sleepDate]
+    `SELECT id FROM post_analysis_result WHERE user_id = ? AND sleep_date = ? LIMIT 1`,
+    [userId, sleepDate]
   );
   return Boolean(row);
 }
 
-async function generatePostAnalysisForDate(sleepDate, satisfactionScore) {
+async function generatePostAnalysisForDate(userIdOrSleepDate, sleepDateOrSatisfaction, maybeSatisfactionScore) {
+  const legacyCall = maybeSatisfactionScore === undefined;
+  const userId = legacyCall ? 1 : userIdOrSleepDate;
+  const sleepDate = legacyCall ? userIdOrSleepDate : sleepDateOrSatisfaction;
+  const satisfactionScore = legacyCall ? sleepDateOrSatisfaction : maybeSatisfactionScore;
+
   const [sleepRow, scoreResult, predictionRow, patternProfile] = await Promise.all([
     dbGet(
       `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
               deep_minutes, light_minutes, rem_minutes, is_main_sleep
        FROM fitbit_sleep
-       WHERE sleep_date = ?
+       WHERE user_id = ? AND sleep_date = ?
        ORDER BY created_at DESC
        LIMIT 1`,
-      [sleepDate]
+      [userId, sleepDate]
     ),
     dbGet(
-      `SELECT sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score
+      `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score
        FROM sleep_score_result
-       WHERE sleep_date = ?
+       WHERE user_id = ? AND sleep_date = ?
        ORDER BY created_at DESC
        LIMIT 1`,
-      [sleepDate]
+      [userId, sleepDate]
     ),
     dbGet(
       `SELECT feature_snapshot_json
        FROM prediction_result
-       WHERE target_sleep_date = ?
+       WHERE user_id = ? AND target_sleep_date = ?
        ORDER BY prediction_ts DESC
        LIMIT 1`,
-      [sleepDate]
+      [userId, sleepDate]
     ),
     dbGet(
       `SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend
        FROM pattern_profile
+       WHERE user_id = ?
        ORDER BY updated_at DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [userId]
     )
   ]);
 
@@ -111,16 +120,18 @@ async function generatePostAnalysisForDate(sleepDate, satisfactionScore) {
     : `[rule] ${withGapNote(analysis)}`;
   const createdAt = new Date().toISOString();
 
-  await dbRun(`DELETE FROM post_analysis_result WHERE sleep_date = ?`, [sleepDate]);
+  await dbRun(`DELETE FROM post_analysis_result WHERE user_id = ? AND sleep_date = ?`, [userId, sleepDate]);
   const insertResult = await dbRun(
-    `INSERT INTO post_analysis_result (sleep_date, causes_json, analysis_text, created_at)
-     VALUES (?, ?, ?, ?)`,
-    [sleepDate, analysis.causes_json, analysisText, createdAt]
+    `INSERT INTO post_analysis_result
+       (user_id, sleep_score_result_id, sleep_date, causes_json, analysis_text, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userId, scoreResult.id, sleepDate, analysis.causes_json, analysisText, createdAt]
   );
 
   return {
     action: "upsert",
     id: insertResult.lastID,
+    user_id: userId,
     sleep_date: sleepDate,
     causes: parseJsonObject(analysis.causes_json) || [],
     analysis_text: analysisText,

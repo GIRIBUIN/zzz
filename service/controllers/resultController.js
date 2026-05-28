@@ -1,8 +1,10 @@
 const resultService = require("../services/resultService");
+const { requireUserIdFromRequest } = require("../utils/userContext");
 
 async function getLatestResult(req, res) {
   try {
-    const data = await resultService.getLatestResult();
+    const userId = await requireUserIdFromRequest(req);
+    const data = await resultService.getLatestResult(userId);
 
     res.json({
       status: "ok",
@@ -13,7 +15,10 @@ async function getLatestResult(req, res) {
       }
     });
   } catch (error) {
-    res.status(500).json({
+    const statusCode = error.message === "user not found" || error.message.includes("user_id")
+      ? 400
+      : 500;
+    res.status(statusCode).json({
       status: "error",
       endpoint: "GET /result/latest",
       message: error.message
@@ -23,11 +28,12 @@ async function getLatestResult(req, res) {
 
 async function getSleepScoreHistory(req, res) {
   try {
+    const userId = await requireUserIdFromRequest(req);
     const requestedLimit = Number(req.query.limit);
     const limit = Number.isFinite(requestedLimit)
       ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 30)
       : 7;
-    const history = await resultService.getSleepScoreHistory(limit);
+    const history = await resultService.getSleepScoreHistory(userId, limit);
 
     res.json({
       status: "ok",
@@ -38,7 +44,10 @@ async function getSleepScoreHistory(req, res) {
       }
     });
   } catch (error) {
-    res.status(500).json({
+    const statusCode = error.message === "user not found" || error.message.includes("user_id")
+      ? 400
+      : 500;
+    res.status(statusCode).json({
       status: "error",
       endpoint: "GET /result/sleep-score-history",
       message: error.message

@@ -160,7 +160,7 @@ async function loadLatestPrediction() {
   predictionStatus.style.color = "#727477";
 
   try {
-    const response = await fetch("/result/latest");
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest"));
     const result = await response.json();
 
     if (result.status !== "ok") {
@@ -202,7 +202,7 @@ async function requestPrediction() {
     const predictResponse = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
+      body: JSON.stringify(window.ZZZAuth.withUserBody({}))
     });
 
     const predictResult = await predictResponse.json();

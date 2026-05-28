@@ -176,7 +176,7 @@ async function loadLatestResult() {
   renderPageStatus("불러오는 중...");
 
   try {
-    const response = await fetch("/result/latest");
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest"));
     const result = await response.json();
 
     if (result.status !== "ok") {

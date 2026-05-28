@@ -80,6 +80,7 @@ function renderSaveResult(data) {
 async function submitFeedback() {
   const payload = {
     // Server treats this date as the wake date and maps it to the previous sleep_date.
+    user_id: window.ZZZAuth.requireUser().user_id,
     sleep_date: sleepDate.value,
     satisfaction_score: Number(satisfactionScore.value)
   };

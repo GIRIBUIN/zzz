@@ -148,6 +148,54 @@
     font-size: 14px;
     font-weight: 700;
   }
+
+  .auth-panel {
+    margin-top: auto;
+    display: grid;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .auth-title {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .auth-user {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    word-break: break-word;
+  }
+
+  .auth-user span,
+  .auth-message {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .auth-form,
+  .auth-actions {
+    display: grid;
+    gap: 8px;
+  }
+
+  .auth-input {
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  .auth-button {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
   
   /* ===== Main Area ===== */
   

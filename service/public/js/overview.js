@@ -61,7 +61,7 @@ async function loadHealth() {
 
 async function loadLatestSummary() {
   try {
-    const response = await fetch("/result/latest");
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest"));
     const payload = await response.json();
     const data = payload.data || {};
 
@@ -106,6 +106,7 @@ async function submitFeedback() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
+        user_id: window.ZZZAuth.requireUser().user_id,
         sleep_date,
         satisfaction_score
       })
@@ -210,7 +211,7 @@ function renderTrendChart(history) {
 
 async function loadSleepScoreTrend() {
   try {
-    const response = await fetch("/result/sleep-score-history?limit=7");
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/sleep-score-history?limit=7"));
     const payload = await response.json();
     const history = payload.data?.history || [];
     renderTrendChart(history);

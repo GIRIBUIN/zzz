@@ -1,73 +1,159 @@
 PRAGMA foreign_keys = ON;
 
 -- =========================================================
--- 1. Sensor raw data
+-- 1. Users
+-- 서비스 사용자 계정
+-- =========================================================
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    login_id TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_login_id
+ON users(login_id);
+
+-- =========================================================
+-- 2. Devices
+-- 사용자별 RPi/IoT 장치
+-- =========================================================
+CREATE TABLE IF NOT EXISTS devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    iot_thing_name TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_devices_iot_thing_name
+ON devices(iot_thing_name);
+
+CREATE INDEX IF NOT EXISTS idx_devices_user_id
+ON devices(user_id);
+
+-- =========================================================
+-- 3. Fitbit accounts
+-- 사용자별 Fitbit OAuth 연결 정보
+-- =========================================================
+CREATE TABLE IF NOT EXISTS fitbit_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    fitbit_user_id TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    token_expires_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_accounts_user
+ON fitbit_accounts(user_id, fitbit_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_fitbit_accounts_user_id
+ON fitbit_accounts(user_id);
+
+-- =========================================================
+-- 4. Sensor raw data
 -- 환경 센서 원본 데이터 저장
 -- 수집 시점마다 1 row 생성
 -- =========================================================
 CREATE TABLE IF NOT EXISTS sensor_raw (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    device_id INTEGER NOT NULL,
     ts TEXT NOT NULL,                     -- ISO 8601 timestamp
     temperature REAL,
     humidity REAL,
     mq5_raw REAL,
     mq5_index REAL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (device_id) REFERENCES devices(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_sensor_raw_ts
-ON sensor_raw(ts);
+CREATE INDEX IF NOT EXISTS idx_sensor_raw_user_ts
+ON sensor_raw(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_sensor_raw_device_id
+ON sensor_raw(device_id);
 
 -- =========================================================
--- 2. Fitbit heart intraday
+-- 5. Fitbit heart intraday
 -- Fitbit 심박 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_heart (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    fitbit_account_id INTEGER NOT NULL,
     ts TEXT NOT NULL,                     -- ISO 8601 timestamp
     bpm INTEGER NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (fitbit_account_id) REFERENCES fitbit_accounts(id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_heart_ts
-ON fitbit_heart(ts);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_heart_user_ts
+ON fitbit_heart(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_fitbit_heart_account_id
+ON fitbit_heart(fitbit_account_id);
 
 -- =========================================================
--- 3. Fitbit steps intraday
+-- 6. Fitbit steps intraday
 -- Fitbit 걸음 수 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_steps (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    fitbit_account_id INTEGER NOT NULL,
     ts TEXT NOT NULL,                     -- ISO 8601 timestamp
     steps INTEGER NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (fitbit_account_id) REFERENCES fitbit_accounts(id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_steps_ts
-ON fitbit_steps(ts);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_steps_user_ts
+ON fitbit_steps(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_fitbit_steps_account_id
+ON fitbit_steps(fitbit_account_id);
 
 -- =========================================================
--- 4. Fitbit calories intraday
+-- 7. Fitbit calories intraday
 -- Fitbit 칼로리 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_calories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    fitbit_account_id INTEGER NOT NULL,
     ts TEXT NOT NULL,                     -- ISO 8601 timestamp
     calories REAL NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (fitbit_account_id) REFERENCES fitbit_accounts(id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_calories_ts
-ON fitbit_calories(ts);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_calories_user_ts
+ON fitbit_calories(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_fitbit_calories_account_id
+ON fitbit_calories(fitbit_account_id);
 
 -- =========================================================
--- 5. Fitbit main sleep result
+-- 8. Fitbit main sleep result
 -- 하루 대표 수면(main sleep) 1개 저장
 -- isMainSleep == true 를 우선 사용(밤 샌날, 낮잠만 잔 날 있을 수 있음)
 -- 예외 시 가장 긴 sleep log 사용 가능
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_sleep (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    fitbit_account_id INTEGER NOT NULL,
     sleep_date TEXT NOT NULL,             -- YYYY-MM-DD
     start_time TEXT,
     end_time TEXT,
@@ -78,34 +164,42 @@ CREATE TABLE IF NOT EXISTS fitbit_sleep (
     rem_minutes INTEGER,
     is_main_sleep INTEGER,                -- 1=true, 0=false
     raw_json TEXT,                        -- original response snapshot
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (fitbit_account_id) REFERENCES fitbit_accounts(id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_sleep_date
-ON fitbit_sleep(sleep_date);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fitbit_sleep_user_date
+ON fitbit_sleep(user_id, sleep_date);
+
+CREATE INDEX IF NOT EXISTS idx_fitbit_sleep_account_id
+ON fitbit_sleep(fitbit_account_id);
 
 -- =========================================================
--- 6. User feedback
+-- 9. User feedback
 -- 사용자 주관 만족도 입력
 -- 현재는 점수만 필수
 -- =========================================================
 CREATE TABLE IF NOT EXISTS user_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     sleep_date TEXT NOT NULL,
     satisfaction_score REAL NOT NULL,     -- 0~100
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_feedback_date
-ON user_feedback(sleep_date);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_feedback_user_date
+ON user_feedback(user_id, sleep_date);
 
 -- =========================================================
--- 7. Pre-sleep prediction result
+-- 10. Pre-sleep prediction result
 -- 취침 전 예측 결과 저장
 -- 하루 여러 번 실행될 수 있으므로 prediction_ts 기준으로 기록
 -- =========================================================
 CREATE TABLE IF NOT EXISTS prediction_result (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     prediction_ts TEXT NOT NULL,          -- execution time
     target_sleep_date TEXT,               -- intended sleep date
     risk_level TEXT NOT NULL,             -- LOW / MEDIUM / HIGH
@@ -113,69 +207,81 @@ CREATE TABLE IF NOT EXISTS prediction_result (
     reasons_json TEXT,                    -- JSON array of reasons
     action_text TEXT,
     feature_snapshot_json TEXT,           -- features used at prediction time
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_prediction_result_ts
-ON prediction_result(prediction_ts);
+CREATE INDEX IF NOT EXISTS idx_prediction_result_user_ts
+ON prediction_result(user_id, prediction_ts);
 
-CREATE INDEX IF NOT EXISTS idx_prediction_result_target_date
-ON prediction_result(target_sleep_date);
+CREATE INDEX IF NOT EXISTS idx_prediction_result_user_target_date
+ON prediction_result(user_id, target_sleep_date);
 
 -- =========================================================
--- 8. Sleep score result
+-- 11. Sleep score result
 -- 기상 후 계산한 Sleep Score 저장
 -- 하루 대표 수면 기준
 -- =========================================================
 CREATE TABLE IF NOT EXISTS sleep_score_result (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     sleep_date TEXT NOT NULL,
     time_asleep_score REAL,
     deep_rem_score REAL,
     restoration_score REAL,
     total_score REAL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_sleep_score_result_date
-ON sleep_score_result(sleep_date);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sleep_score_result_user_date
+ON sleep_score_result(user_id, sleep_date);
 
 -- =========================================================
--- 9. Post-sleep analysis result
+-- 12. Post-sleep analysis result
 -- 기상 후 원인 분석 결과 저장
 -- 원인은 JSON 형태로 확장 가능하게 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS post_analysis_result (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    sleep_score_result_id INTEGER,
     sleep_date TEXT NOT NULL,
     causes_json TEXT,                     -- JSON array of causes
     analysis_text TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (sleep_score_result_id) REFERENCES sleep_score_result(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_post_analysis_result_date
-ON post_analysis_result(sleep_date);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_post_analysis_result_user_date
+ON post_analysis_result(user_id, sleep_date);
+
+CREATE INDEX IF NOT EXISTS idx_post_analysis_result_score_id
+ON post_analysis_result(sleep_score_result_id);
 
 -- =========================================================
--- 10. Pattern profile (A)
+-- 13. Pattern profile (A)
 -- 누적 패턴 데이터 저장
 -- 최신값만 덮어쓰지 않고, 갱신 시마다 이력을 남김
 -- =========================================================
 CREATE TABLE IF NOT EXISTS pattern_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleep_date TEXT,                         -- YYYY-MM-DD, source sleep date for this pattern update
-    stage TEXT,                              -- stage1 / stage2
+    user_id INTEGER NOT NULL,
+    sleep_date TEXT,                      -- YYYY-MM-DD, source sleep date for this pattern update
+    stage TEXT,                           -- stage1 / stage2
     updated_at TEXT NOT NULL,
     avg_sleep_minutes REAL,
     avg_satisfaction REAL,
     avg_presleep_hr REAL,
     score_gap_trend REAL,                 -- objective vs subjective trend
     env_sensitivity_json TEXT,
-    pattern_snapshot_json TEXT
+    pattern_snapshot_json TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_pattern_profile_updated_at
-ON pattern_profile(updated_at);
+CREATE INDEX IF NOT EXISTS idx_pattern_profile_user_updated_at
+ON pattern_profile(user_id, updated_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_pattern_profile_sleep_date_stage
-ON pattern_profile(sleep_date, stage);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pattern_profile_user_sleep_date_stage
+ON pattern_profile(user_id, sleep_date, stage);

@@ -15,10 +15,12 @@ const { computePresleepRisk } = require("../../processing/prediction/prediction"
 const { calcSleepScore } = require("../../processing/scoring/sleep_score");
 const { updatePatternStage1, updatePatternStage2 } = require("../../processing/pattern/pattern_update");
 const { analyzePostSleep } = require("../../processing/analysis/post_analysis");
+const { hashPassword } = require("../../service/services/authService");
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DEMO_TAG = "demo-seed";
 const DEMO_LOGIN_ID = "u001";
+const DEMO_PASSWORD = "demo1234";
 const DEMO_DEVICE_NAME = "rpi001";
 const DEMO_FITBIT_USER_ID = "fitbit-u001-demo";
 
@@ -65,11 +67,18 @@ function dbGet(sql, params = []) {
 
 async function ensureDemoIdentity() {
   const now = new Date().toISOString();
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
 
   await dbRun(
     `INSERT OR IGNORE INTO users (login_id, password_hash, created_at, updated_at)
      VALUES (?, ?, ?, ?)`,
-    [DEMO_LOGIN_ID, "demo-password-hash", now, now]
+    [DEMO_LOGIN_ID, passwordHash, now, now]
+  );
+  await dbRun(
+    `UPDATE users
+     SET password_hash = ?, updated_at = ?
+     WHERE login_id = ?`,
+    [passwordHash, now, DEMO_LOGIN_ID]
   );
   const user = await dbGet(`SELECT id, login_id FROM users WHERE login_id = ?`, [DEMO_LOGIN_ID]);
 

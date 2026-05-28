@@ -12,6 +12,60 @@ const { kstIsoLocal } = require("../../utils/time");
 
 const SENSOR_INTERVAL_SECONDS = Number(process.env.SENSOR_INTERVAL_SECONDS || 60);
 
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    const db = require("../../storage/db/db");
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function normalizePositiveInteger(value, fieldName, defaultValue = null) {
+  const rawValue = value ?? defaultValue;
+  const numberValue = Number(rawValue);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    throw new Error(`${fieldName} must be a positive integer`);
+  }
+
+  return numberValue;
+}
+
+async function resolveDeviceContext(options = {}) {
+  const userId = normalizePositiveInteger(options.user_id, "user_id", 1);
+  const requestedDeviceId = options.device_id == null
+    ? null
+    : normalizePositiveInteger(options.device_id, "device_id");
+  const params = [userId];
+  let where = "user_id = ?";
+
+  if (requestedDeviceId !== null) {
+    where += " AND id = ?";
+    params.push(requestedDeviceId);
+  }
+
+  const device = await dbGet(
+    `SELECT id, user_id, iot_thing_name
+     FROM devices
+     WHERE ${where}
+     ORDER BY id ASC
+     LIMIT 1`,
+    params
+  );
+
+  if (!device) {
+    throw new Error("device not found for user");
+  }
+
+  return {
+    user_id: userId,
+    device_id: device.id,
+    iot_thing_name: device.iot_thing_name
+  };
+}
+
 async function collectSensors() {
   const collectedAt = kstIsoLocal();
 
@@ -59,22 +113,28 @@ async function collectSensors() {
   return data;
 }
 
-function saveSensorRaw(data) {
+async function saveSensorRaw(data, options = {}) {
+  const context = await resolveDeviceContext(options);
+
   return new Promise((resolve, reject) => {
     const db = require("../../storage/db/db");
 
     const sql = `
       INSERT INTO sensor_raw (
+        user_id,
+        device_id,
         ts,
         temperature,
         humidity,
         mq5_raw,
         mq5_index
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
+      context.user_id,
+      context.device_id,
       data.ts,
       data.temperature,
       data.humidity,
@@ -90,20 +150,22 @@ function saveSensorRaw(data) {
 
       resolve({
         id: this.lastID,
+        user_id: context.user_id,
+        device_id: context.device_id,
         ...data,
       });
     });
   });
 }
 
-async function runOnce({ save = false } = {}) {
+async function runOnce({ save = false, user_id = 1, device_id = null } = {}) {
   const data = await collectSensors();
 
   console.log("Sensor collected");
   console.log(JSON.stringify(data, null, 2));
 
   if (save) {
-    const saved = await saveSensorRaw(data);
+    const saved = await saveSensorRaw(data, { user_id, device_id });
     console.log("Sensor data saved to DB");
     console.log(JSON.stringify(saved, null, 2));
   }
@@ -111,13 +173,13 @@ async function runOnce({ save = false } = {}) {
   return data;
 }
 
-async function runWatch({ save = false } = {}) {
+async function runWatch({ save = false, user_id = 1, device_id = null } = {}) {
   console.log(`Sensor collector started. interval=${SENSOR_INTERVAL_SECONDS}s save=${save}`);
 
-  await runOnce({ save });
+  await runOnce({ save, user_id, device_id });
 
   setInterval(() => {
-    runOnce({ save }).catch((err) => {
+    runOnce({ save, user_id, device_id }).catch((err) => {
       console.error("Sensor collection failed");
       console.error(err.message || err);
     });
@@ -126,6 +188,7 @@ async function runWatch({ save = false } = {}) {
 
 module.exports = {
   collectSensors,
+  resolveDeviceContext,
   saveSensorRaw,
   runOnce,
   runWatch,
@@ -136,14 +199,18 @@ if (require.main === module) {
 
   const save = args.includes("--save");
   const watch = args.includes("--watch");
+  const userIdIndex = args.findIndex((arg) => arg === "--user-id" || arg === "--user_id");
+  const deviceIdIndex = args.findIndex((arg) => arg === "--device-id" || arg === "--device_id");
+  const user_id = userIdIndex !== -1 ? args[userIdIndex + 1] : 1;
+  const device_id = deviceIdIndex !== -1 ? args[deviceIdIndex + 1] : null;
 
   if (watch) {
-    runWatch({ save }).catch((err) => {
+    runWatch({ save, user_id, device_id }).catch((err) => {
       console.error(err.message || err);
       process.exit(1);
     });
   } else {
-    runOnce({ save })
+    runOnce({ save, user_id, device_id })
       .then(() => process.exit(0))
       .catch((err) => {
         console.error(err.message || err);

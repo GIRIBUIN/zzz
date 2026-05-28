@@ -11,6 +11,7 @@
  */
 
 const {
+  getFitbitAccount,
   fetchHeartIntraday,
   fetchStepsIntraday,
   fetchCaloriesIntraday,
@@ -32,12 +33,58 @@ if (!['presleep', 'postsleep'].includes(mode)) {
 
 // Helper
 
+function argValue(name) {
+  const index = args.indexOf(name);
+  return index !== -1 ? args[index + 1] : null;
+}
+
 function todayStr() {
   return kstDateString(); // YYYY-MM-DD, KST
 }
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function onRun(err) {
+      if (err) return reject(err);
+      resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+function normalizePositiveInteger(value, fieldName, defaultValue = null) {
+  const rawValue = value ?? defaultValue;
+  const numberValue = Number(rawValue);
+
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    throw new Error(`${fieldName} must be a positive integer`);
+  }
+
+  return numberValue;
+}
+
+async function resolveFitbitContext(options = {}) {
+  const userId = normalizePositiveInteger(options.user_id, 'user_id', 1);
+  const fitbitAccountId = options.fitbit_account_id == null
+    ? null
+    : normalizePositiveInteger(options.fitbit_account_id, 'fitbit_account_id');
+  const account = await getFitbitAccount({
+    user_id: userId,
+    fitbit_account_id: fitbitAccountId
+  });
+
+  if (account.user_id !== userId) {
+    throw new Error('fitbit_account_id does not belong to user_id');
+  }
+
+  return {
+    user_id: userId,
+    fitbit_account_id: account.id,
+    fitbitAccount: account
+  };
 }
 
 /**
@@ -57,7 +104,7 @@ function sliceLastMinutes(dataset, minutes) {
 }
 
 // DB 저장 헬퍼
-function saveHeartRaw(heartJson, minutes = null) {
+async function saveHeartRaw(context, heartJson, minutes = null) {
   let series = heartJson?.['activities-heart-intraday']?.dataset ?? [];
   if (series.length === 0) {
     console.warn('[collect_fitbit] 심박 데이터 없음');
@@ -65,26 +112,20 @@ function saveHeartRaw(heartJson, minutes = null) {
   }
   if (minutes) series = sliceLastMinutes(series, minutes);
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO fitbit_heart (ts, bpm, created_at)
-    VALUES (?, ?, ?)
-  `);
-
   const now = nowIso();
 
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    for (const point of series) {
-      stmt.run(toIsoTs(point.time), point.value, now);
-    }
-    db.run('COMMIT');
-  });
+  for (const point of series) {
+    await dbRun(
+      `INSERT OR IGNORE INTO fitbit_heart (user_id, fitbit_account_id, ts, bpm, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [context.user_id, context.fitbit_account_id, toIsoTs(point.time), point.value, now]
+    );
+  }
 
-  stmt.finalize();
   console.log(`[collect_fitbit] 심박 ${series.length}건 저장`);
 }
 
-function saveStepsRaw(stepsJson, minutes = null) {
+async function saveStepsRaw(context, stepsJson, minutes = null) {
   let series = stepsJson?.['activities-steps-intraday']?.dataset ?? [];
   if (series.length === 0) {
     console.warn('[collect_fitbit] 걸음수 데이터 없음');
@@ -92,26 +133,20 @@ function saveStepsRaw(stepsJson, minutes = null) {
   }
   if (minutes) series = sliceLastMinutes(series, minutes);
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO fitbit_steps (ts, steps, created_at)
-    VALUES (?, ?, ?)
-  `);
-
   const now = nowIso();
 
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    for (const point of series) {
-      stmt.run(toIsoTs(point.time), point.value, now);
-    }
-    db.run('COMMIT');
-  });
+  for (const point of series) {
+    await dbRun(
+      `INSERT OR IGNORE INTO fitbit_steps (user_id, fitbit_account_id, ts, steps, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [context.user_id, context.fitbit_account_id, toIsoTs(point.time), point.value, now]
+    );
+  }
 
-  stmt.finalize();
   console.log(`[collect_fitbit] 걸음수 ${series.length}건 저장`);
 }
 
-function saveCaloriesRaw(caloriesJson, minutes = null) {
+async function saveCaloriesRaw(context, caloriesJson, minutes = null) {
   let series = caloriesJson?.['activities-calories-intraday']?.dataset ?? [];
   if (series.length === 0) {
     console.warn('[collect_fitbit] 칼로리 데이터 없음');
@@ -119,26 +154,20 @@ function saveCaloriesRaw(caloriesJson, minutes = null) {
   }
   if (minutes) series = sliceLastMinutes(series, minutes);
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO fitbit_calories (ts, calories, created_at)
-    VALUES (?, ?, ?)
-  `);
-
   const now = nowIso();
 
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    for (const point of series) {
-      stmt.run(toIsoTs(point.time), point.value, now);
-    }
-    db.run('COMMIT');
-  });
+  for (const point of series) {
+    await dbRun(
+      `INSERT OR IGNORE INTO fitbit_calories (user_id, fitbit_account_id, ts, calories, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [context.user_id, context.fitbit_account_id, toIsoTs(point.time), point.value, now]
+    );
+  }
 
-  stmt.finalize();
   console.log(`[collect_fitbit] 칼로리 ${series.length}건 저장`);
 }
 
-function saveSleepRaw(sleepJson) {
+async function saveSleepRaw(context, sleepJson) {
   const mainSleep = (sleepJson?.sleep ?? []).find(s => s.isMainSleep);
   if (!mainSleep) {
     console.warn('[collect_fitbit] 대표 수면(main sleep) 없음 — 아직 수면 전이거나 동기화 안 됨');
@@ -147,14 +176,17 @@ function saveSleepRaw(sleepJson) {
 
   const levels = mainSleep.levels?.summary ?? {};
 
-  db.run(`
+  await dbRun(`
     INSERT OR IGNORE INTO fitbit_sleep (
+      user_id, fitbit_account_id,
       sleep_date, start_time, end_time,
       minutes_asleep, minutes_awake,
       deep_minutes, light_minutes, rem_minutes,
       is_main_sleep, raw_json, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
   `, [
+    context.user_id,
+    context.fitbit_account_id,
     todayStr(),
     mainSleep.startTime,
     mainSleep.endTime,
@@ -165,10 +197,9 @@ function saveSleepRaw(sleepJson) {
     levels.rem?.minutes   ?? 0,
     JSON.stringify(mainSleep),
     nowIso(),
-  ], (err) => {
-    if (err) console.error('[collect_fitbit] 수면 저장 오류:', err.message);
-    else     console.log('[collect_fitbit] 수면 데이터 저장 완료');
-  });
+  ]);
+
+  console.log('[collect_fitbit] 수면 데이터 저장 완료');
 }
 
 /**
@@ -176,18 +207,19 @@ function saveSleepRaw(sleepJson) {
  * - 심박 시계열 (최근 60분)
  * - 걸음수 시계열 (최근 60분)
  */
-async function collectPresleep() {
+async function collectPresleep(options = {}) {
   console.log('[collect_fitbit] 취침 전 수집 시작');
+  const context = await resolveFitbitContext(options);
 
   const [heartJson, stepsJson, caloriesJson] = await Promise.all([
-    fetchHeartIntraday(),
-    fetchStepsIntraday(),
-    fetchCaloriesIntraday(),
+    fetchHeartIntraday(context.fitbitAccount),
+    fetchStepsIntraday(context.fitbitAccount),
+    fetchCaloriesIntraday(context.fitbitAccount),
   ]);
 
-  saveHeartRaw(heartJson, 60);
-  saveStepsRaw(stepsJson, 60);
-  saveCaloriesRaw(caloriesJson, 60);
+  await saveHeartRaw(context, heartJson, 60);
+  await saveStepsRaw(context, stepsJson, 60);
+  await saveCaloriesRaw(context, caloriesJson, 60);
 
   console.log('[collect_fitbit] 취침 전 수집 완료');
 }
@@ -198,20 +230,21 @@ async function collectPresleep() {
  * - 심박 전체 (수면 중 포함)
  * - 걸음수 전체
  */
-async function collectPostsleep() {
+async function collectPostsleep(options = {}) {
   console.log('[collect_fitbit] 기상 후 수집 시작');
+  const context = await resolveFitbitContext(options);
 
   const [heartJson, stepsJson, caloriesJson, sleepJson] = await Promise.all([
-    fetchHeartIntraday(),
-    fetchStepsIntraday(),
-    fetchCaloriesIntraday(),
-    fetchSleep(),
+    fetchHeartIntraday(context.fitbitAccount),
+    fetchStepsIntraday(context.fitbitAccount),
+    fetchCaloriesIntraday(context.fitbitAccount),
+    fetchSleep(context.fitbitAccount),
   ]);
 
-  saveHeartRaw(heartJson);
-  saveStepsRaw(stepsJson);
-  saveCaloriesRaw(caloriesJson);
-  saveSleepRaw(sleepJson);
+  await saveHeartRaw(context, heartJson);
+  await saveStepsRaw(context, stepsJson);
+  await saveCaloriesRaw(context, caloriesJson);
+  await saveSleepRaw(context, sleepJson);
 
   console.log('[collect_fitbit] 기상 후 수집 완료');
 }
@@ -219,6 +252,11 @@ async function collectPostsleep() {
 module.exports = {
   collectPresleep,
   collectPostsleep,
+  resolveFitbitContext,
+  saveHeartRaw,
+  saveStepsRaw,
+  saveCaloriesRaw,
+  saveSleepRaw,
 };
 
 // run(터미널에서)
@@ -226,6 +264,8 @@ if (require.main === module) {
   const args    = process.argv.slice(2);
   const modeIdx = args.indexOf('--mode');
   const mode    = modeIdx !== -1 ? args[modeIdx + 1] : 'presleep';
+  const userId = argValue('--user-id') || argValue('--user_id') || 1;
+  const fitbitAccountId = argValue('--fitbit-account-id') || argValue('--fitbit_account_id');
  
   if (!['presleep', 'postsleep'].includes(mode)) {
     console.error('--mode는 presleep 또는 postsleep 이어야 합니다.');
@@ -235,9 +275,9 @@ if (require.main === module) {
   (async () => {
     try {
       if (mode === 'presleep') {
-        await collectPresleep();
+        await collectPresleep({ user_id: userId, fitbit_account_id: fitbitAccountId });
       } else {
-        await collectPostsleep();
+        await collectPostsleep({ user_id: userId, fitbit_account_id: fitbitAccountId });
       }
     } catch (err) {
       console.error('[collect_fitbit] 오류:', err.message);

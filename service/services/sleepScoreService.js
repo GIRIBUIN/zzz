@@ -171,7 +171,7 @@ async function tryCollectSleep(userId, sleepDate) {
 
   try {
     console.log("[sleepScoreService] Fitbit sleep sync start");
-    const sleepJson = await fetchSleep();
+    const sleepJson = await fetchSleep({ user_id: userId });
     const result = await saveFitbitSleepFromJson(userId, sleepDate, sleepJson);
     console.log("[sleepScoreService] Fitbit sleep sync result:", result.action);
     return result;

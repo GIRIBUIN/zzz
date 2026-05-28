@@ -47,14 +47,19 @@ async function ensurePatternProfileSchema() {
   schemaReady = true;
 }
 
-async function replacePatternRow(sleepDate, stage, insertSql, params) {
+async function replacePatternRow(userId, sleepDate, stage, insertSql, params) {
   await ensurePatternProfileSchema();
-  await dbRun(`DELETE FROM pattern_profile WHERE sleep_date = ? AND stage = ?`, [sleepDate, stage]);
+  await dbRun(
+    `DELETE FROM pattern_profile WHERE user_id = ? AND sleep_date = ? AND stage = ?`,
+    [userId, sleepDate, stage]
+  );
   return dbRun(insertSql, params);
 }
 
 // Stage 1: called after objective sleep data (Fitbit) is available for sleepDate
-async function updatePatternStage1(sleepDate) {
+async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
+  const userId = maybeSleepDate === undefined ? 1 : userIdOrSleepDate;
+  const sleepDate = maybeSleepDate === undefined ? userIdOrSleepDate : maybeSleepDate;
   await ensurePatternProfileSchema();
   const now = new Date().toISOString();
 
@@ -63,19 +68,19 @@ async function updatePatternStage1(sleepDate) {
     `SELECT AVG(minutes_asleep) AS avg_sleep_minutes
      FROM (
        SELECT minutes_asleep FROM fitbit_sleep
-       WHERE sleep_date <= ? AND is_main_sleep = 1
+       WHERE user_id = ? AND sleep_date <= ? AND is_main_sleep = 1
        ORDER BY sleep_date DESC LIMIT ?
      )`,
-    [sleepDate, RECENT_N_DAYS]
+    [userId, sleepDate, RECENT_N_DAYS]
   );
 
   // Sliding-window avg_presleep_hr: average avg_hr_1h from last N days of prediction snapshots
   const predRows = await dbAll(
     `SELECT feature_snapshot_json FROM prediction_result
-     WHERE target_sleep_date <= ?
+     WHERE user_id = ? AND target_sleep_date <= ?
      GROUP BY target_sleep_date
      ORDER BY target_sleep_date DESC LIMIT ?`,
-    [sleepDate, RECENT_N_DAYS]
+    [userId, sleepDate, RECENT_N_DAYS]
   );
 
   let avgPresleepHr = null;
@@ -96,10 +101,11 @@ async function updatePatternStage1(sleepDate) {
   if (avgPresleepHr === null) {
     const hrRow = await dbGet(
       `SELECT AVG(bpm) AS avg_hr FROM fitbit_heart
-       WHERE substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
+       WHERE user_id = ?
+         AND substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
          AND substr(ts, 1, 10) <= ?
          AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')`,
-      [sleepDate, sleepDate, RECENT_N_DAYS]
+      [userId, sleepDate, sleepDate, RECENT_N_DAYS]
     );
     avgPresleepHr = hrRow?.avg_hr ?? null;
   }
@@ -107,17 +113,21 @@ async function updatePatternStage1(sleepDate) {
   // Carry forward existing avg_satisfaction, score_gap_trend, and computed fields from last pattern
   const lastPattern = await dbGet(
     `SELECT avg_satisfaction, score_gap_trend, env_sensitivity_json, pattern_snapshot_json
-     FROM pattern_profile ORDER BY updated_at DESC LIMIT 1`,
-    []
+     FROM pattern_profile
+     WHERE user_id = ?
+     ORDER BY updated_at DESC LIMIT 1`,
+    [userId]
   );
 
   await replacePatternRow(
+    userId,
     sleepDate,
     "stage1",
     `INSERT INTO pattern_profile
-       (sleep_date, stage, updated_at, avg_sleep_minutes, avg_presleep_hr, avg_satisfaction, score_gap_trend, env_sensitivity_json, pattern_snapshot_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (user_id, sleep_date, stage, updated_at, avg_sleep_minutes, avg_presleep_hr, avg_satisfaction, score_gap_trend, env_sensitivity_json, pattern_snapshot_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      userId,
       sleepDate,
       "stage1",
       now,
@@ -140,7 +150,12 @@ async function updatePatternStage1(sleepDate) {
 // Stage 2: called after user submits satisfaction score
 // sleepScoreTotal: objective auto score (0~100)
 // satisfactionScore: subjective user score (0~100)
-async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal) {
+async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, satisfactionOrScore, maybeSleepScoreTotal) {
+  const legacyCall = maybeSleepScoreTotal === undefined;
+  const userId = legacyCall ? 1 : userIdOrSleepDate;
+  const sleepDate = legacyCall ? userIdOrSleepDate : sleepDateOrSatisfaction;
+  const satisfactionScore = legacyCall ? sleepDateOrSatisfaction : satisfactionOrScore;
+  const sleepScoreTotal = legacyCall ? satisfactionOrScore : maybeSleepScoreTotal;
   await ensurePatternProfileSchema();
   const now = new Date().toISOString();
 
@@ -149,10 +164,10 @@ async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal
     `SELECT AVG(satisfaction_score) AS avg_satisfaction
      FROM (
        SELECT satisfaction_score FROM user_feedback
-       WHERE sleep_date <= ?
+       WHERE user_id = ? AND sleep_date <= ?
        ORDER BY sleep_date DESC LIMIT ?
      )`,
-    [sleepDate, RECENT_N_DAYS]
+    [userId, sleepDate, RECENT_N_DAYS]
   );
 
   // score_gap_trend: rolling average of (auto_score - satisfaction_score)
@@ -161,12 +176,12 @@ async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal
      FROM (
        SELECT ssr.total_score AS auto_score, uf.sleep_date
        FROM sleep_score_result ssr
-       JOIN user_feedback uf ON ssr.sleep_date = uf.sleep_date
-       WHERE ssr.sleep_date <= ?
+       JOIN user_feedback uf ON ssr.user_id = uf.user_id AND ssr.sleep_date = uf.sleep_date
+       WHERE ssr.user_id = ? AND ssr.sleep_date <= ?
        ORDER BY ssr.sleep_date DESC LIMIT ?
      ) joined
-     JOIN user_feedback uf ON uf.sleep_date = joined.sleep_date`,
-    [sleepDate, RECENT_N_DAYS]
+     JOIN user_feedback uf ON uf.user_id = ? AND uf.sleep_date = joined.sleep_date`,
+    [userId, sleepDate, RECENT_N_DAYS, userId]
   );
 
   // Fallback: compute from this record alone if join yields nothing
@@ -178,8 +193,10 @@ async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal
   // Carry forward stage-1 fields from latest pattern
   const lastPattern = await dbGet(
     `SELECT avg_sleep_minutes, avg_presleep_hr
-     FROM pattern_profile ORDER BY updated_at DESC LIMIT 1`,
-    []
+     FROM pattern_profile
+     WHERE user_id = ?
+     ORDER BY updated_at DESC LIMIT 1`,
+    [userId]
   );
 
   // env_sensitivity_json: P(factor | low satisfaction) over last N days
@@ -187,11 +204,11 @@ async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal
   const envRows = await dbAll(
     `SELECT pr.feature_snapshot_json, uf.satisfaction_score
      FROM prediction_result pr
-     JOIN user_feedback uf ON pr.target_sleep_date = uf.sleep_date
-     WHERE pr.target_sleep_date <= ?
+     JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
+     WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
      GROUP BY pr.target_sleep_date
      ORDER BY pr.target_sleep_date DESC LIMIT ?`,
-    [sleepDate, RECENT_N_DAYS]
+    [userId, sleepDate, RECENT_N_DAYS]
   );
 
   const factorHits = { gas: 0, temp: 0, humidity: 0, hr: 0, activity: 0 };
@@ -219,13 +236,13 @@ async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal
   const accRows = await dbAll(
     `SELECT pr.risk_level, ssr.total_score AS sleep_score, uf.satisfaction_score
      FROM prediction_result pr
-     LEFT JOIN sleep_score_result ssr ON pr.target_sleep_date = ssr.sleep_date
-     LEFT JOIN user_feedback uf ON pr.target_sleep_date = uf.sleep_date
-     WHERE pr.target_sleep_date <= ?
+     LEFT JOIN sleep_score_result ssr ON pr.user_id = ssr.user_id AND pr.target_sleep_date = ssr.sleep_date
+     LEFT JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
+     WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
        AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL)
      GROUP BY pr.target_sleep_date
      ORDER BY pr.target_sleep_date DESC LIMIT ?`,
-    [sleepDate, RECENT_N_DAYS]
+    [userId, sleepDate, RECENT_N_DAYS]
   );
 
   let totalValid = 0;
@@ -244,12 +261,14 @@ async function updatePatternStage2(sleepDate, satisfactionScore, sleepScoreTotal
   const pattern_snapshot_json = JSON.stringify({ pred_accuracy_rate, computed_at: sleepDate });
 
   await replacePatternRow(
+    userId,
     sleepDate,
     "stage2",
     `INSERT INTO pattern_profile
-       (sleep_date, stage, updated_at, avg_sleep_minutes, avg_presleep_hr, avg_satisfaction, score_gap_trend, env_sensitivity_json, pattern_snapshot_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (user_id, sleep_date, stage, updated_at, avg_sleep_minutes, avg_presleep_hr, avg_satisfaction, score_gap_trend, env_sensitivity_json, pattern_snapshot_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      userId,
       sleepDate,
       "stage2",
       now,

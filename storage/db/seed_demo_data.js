@@ -18,6 +18,9 @@ const { analyzePostSleep } = require("../../processing/analysis/post_analysis");
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DEMO_TAG = "demo-seed";
+const DEMO_LOGIN_ID = "u001";
+const DEMO_DEVICE_NAME = "rpi001";
+const DEMO_FITBIT_USER_ID = "fitbit-u001-demo";
 
 const SCENARIOS = [
   { dayOffset: -6, hr: 74, steps: 180, calories: 95, temp: 24.5, humidity: 18, mq5: 0.31,
@@ -58,6 +61,52 @@ function dbGet(sql, params = []) {
       resolve(row || null);
     });
   });
+}
+
+async function ensureDemoIdentity() {
+  const now = new Date().toISOString();
+
+  await dbRun(
+    `INSERT OR IGNORE INTO users (login_id, password_hash, created_at, updated_at)
+     VALUES (?, ?, ?, ?)`,
+    [DEMO_LOGIN_ID, "demo-password-hash", now, now]
+  );
+  const user = await dbGet(`SELECT id, login_id FROM users WHERE login_id = ?`, [DEMO_LOGIN_ID]);
+
+  await dbRun(
+    `INSERT OR IGNORE INTO devices (user_id, iot_thing_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?)`,
+    [user.id, DEMO_DEVICE_NAME, now, now]
+  );
+  const device = await dbGet(
+    `SELECT id, iot_thing_name FROM devices WHERE user_id = ? AND iot_thing_name = ?`,
+    [user.id, DEMO_DEVICE_NAME]
+  );
+
+  await dbRun(
+    `INSERT OR IGNORE INTO fitbit_accounts
+       (user_id, fitbit_user_id, access_token, refresh_token, token_expires_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user.id,
+      DEMO_FITBIT_USER_ID,
+      "demo-access-token",
+      "demo-refresh-token",
+      "2099-12-31T23:59:59.000Z",
+      now,
+      now
+    ]
+  );
+  const fitbitAccount = await dbGet(
+    `SELECT id, fitbit_user_id FROM fitbit_accounts WHERE user_id = ? AND fitbit_user_id = ?`,
+    [user.id, DEMO_FITBIT_USER_ID]
+  );
+
+  return {
+    userId: user.id,
+    deviceId: device.id,
+    fitbitAccountId: fitbitAccount.id
+  };
 }
 
 function dateStr(dayOffset) {
@@ -146,53 +195,65 @@ function buildSensorRows(dayOffset, temp, humidity, mq5) {
   });
 }
 
-async function clearDemoData() {
-  await dbRun(`DELETE FROM fitbit_heart WHERE created_at = ?`, [DEMO_TAG]);
-  await dbRun(`DELETE FROM fitbit_steps WHERE created_at = ?`, [DEMO_TAG]);
-  await dbRun(`DELETE FROM fitbit_calories WHERE created_at = ?`, [DEMO_TAG]);
-  await dbRun(`DELETE FROM sensor_raw WHERE created_at = ?`, [DEMO_TAG]);
-  await dbRun(`DELETE FROM pattern_profile`);
+async function clearDemoData(identity) {
+  await dbRun(`DELETE FROM fitbit_heart WHERE user_id = ? AND created_at = ?`, [identity.userId, DEMO_TAG]);
+  await dbRun(`DELETE FROM fitbit_steps WHERE user_id = ? AND created_at = ?`, [identity.userId, DEMO_TAG]);
+  await dbRun(`DELETE FROM fitbit_calories WHERE user_id = ? AND created_at = ?`, [identity.userId, DEMO_TAG]);
+  await dbRun(`DELETE FROM sensor_raw WHERE user_id = ? AND created_at = ?`, [identity.userId, DEMO_TAG]);
+  await dbRun(`DELETE FROM pattern_profile WHERE user_id = ?`, [identity.userId]);
 
   for (const sc of SCENARIOS) {
     const date = dateStr(sc.dayOffset);
-    await dbRun(`DELETE FROM prediction_result WHERE target_sleep_date = ?`, [date]);
-    await dbRun(`DELETE FROM fitbit_sleep WHERE sleep_date = ?`, [date]);
-    await dbRun(`DELETE FROM sleep_score_result WHERE sleep_date = ?`, [date]);
-    await dbRun(`DELETE FROM user_feedback WHERE sleep_date = ?`, [date]);
-    await dbRun(`DELETE FROM post_analysis_result WHERE sleep_date = ?`, [date]);
+    await dbRun(`DELETE FROM post_analysis_result WHERE user_id = ? AND sleep_date = ?`, [identity.userId, date]);
+    await dbRun(`DELETE FROM prediction_result WHERE user_id = ? AND target_sleep_date = ?`, [identity.userId, date]);
+    await dbRun(`DELETE FROM user_feedback WHERE user_id = ? AND sleep_date = ?`, [identity.userId, date]);
+    await dbRun(`DELETE FROM sleep_score_result WHERE user_id = ? AND sleep_date = ?`, [identity.userId, date]);
+    await dbRun(`DELETE FROM fitbit_sleep WHERE user_id = ? AND sleep_date = ?`, [identity.userId, date]);
   }
 }
 
-async function seedIntraday(sc) {
+async function seedIntraday(identity, sc) {
   const bpms = buildBpmArray(sc.hr);
   const steps = buildStepsArray(sc.steps);
   const calories = buildCaloriesArray(sc.calories);
 
   for (let i = 0; i < 60; i += 1) {
     const ts = presleepMinuteTs(sc.dayOffset, i);
-    await dbRun(`INSERT OR REPLACE INTO fitbit_heart (ts, bpm, created_at) VALUES (?, ?, ?)`, [ts, bpms[i], DEMO_TAG]);
-    await dbRun(`INSERT OR REPLACE INTO fitbit_steps (ts, steps, created_at) VALUES (?, ?, ?)`, [ts, steps[i], DEMO_TAG]);
-    await dbRun(`INSERT OR REPLACE INTO fitbit_calories (ts, calories, created_at) VALUES (?, ?, ?)`, [ts, calories[i], DEMO_TAG]);
+    await dbRun(
+      `INSERT OR REPLACE INTO fitbit_heart (user_id, fitbit_account_id, ts, bpm, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [identity.userId, identity.fitbitAccountId, ts, bpms[i], DEMO_TAG]
+    );
+    await dbRun(
+      `INSERT OR REPLACE INTO fitbit_steps (user_id, fitbit_account_id, ts, steps, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [identity.userId, identity.fitbitAccountId, ts, steps[i], DEMO_TAG]
+    );
+    await dbRun(
+      `INSERT OR REPLACE INTO fitbit_calories (user_id, fitbit_account_id, ts, calories, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [identity.userId, identity.fitbitAccountId, ts, calories[i], DEMO_TAG]
+    );
   }
 
   for (const row of buildSensorRows(sc.dayOffset, sc.temp, sc.humidity, sc.mq5)) {
     await dbRun(
-      `INSERT INTO sensor_raw (ts, temperature, humidity, mq5_raw, mq5_index, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [row.ts, row.temperature, row.humidity, row.mq5_raw, row.mq5_index, DEMO_TAG]
+      `INSERT INTO sensor_raw (user_id, device_id, ts, temperature, humidity, mq5_raw, mq5_index, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [identity.userId, identity.deviceId, row.ts, row.temperature, row.humidity, row.mq5_raw, row.mq5_index, DEMO_TAG]
     );
   }
 }
 
-async function seedScenario(sc) {
+async function seedScenario(identity, sc) {
   const date = dateStr(sc.dayOffset);
   const tag = sc.dayOffset >= 0 ? `+${sc.dayOffset}` : `${sc.dayOffset}`;
   console.log(`\n  [D${tag}] ${date}`);
 
-  await seedIntraday(sc);
+  await seedIntraday(identity, sc);
 
   const featureSnap = {
-    user_id: "user-01",
+    user_id: identity.userId,
     avg_hr_1h: sc.hr,
     steps_sum_1h: sc.steps,
     calories_sum_1h: sc.calories,
@@ -206,9 +267,9 @@ async function seedScenario(sc) {
 
   await dbRun(
     `INSERT INTO prediction_result
-       (prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [predTs, date, risk.risk_level, risk.risk_score, JSON.stringify(risk.reasons),
+       (user_id, prediction_ts, target_sleep_date, risk_level, risk_score, reasons_json, action_text, feature_snapshot_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [identity.userId, predTs, date, risk.risk_level, risk.risk_score, JSON.stringify(risk.reasons),
       risk.action_text, JSON.stringify(featureSnap), predTs]
   );
   console.log(`    예측: ${risk.risk_level} (${risk.risk_score}점)  이유 ${risk.reasons.length}건`);
@@ -228,37 +289,40 @@ async function seedScenario(sc) {
     rem_minutes: sc.remMin
   };
 
-  await updatePatternStage1(date);
+  await updatePatternStage1(identity.userId, date);
   const latestPattern = await dbGet(
     `SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend
      FROM pattern_profile
+     WHERE user_id = ?
      ORDER BY updated_at DESC
-     LIMIT 1`
+     LIMIT 1`,
+    [identity.userId]
   );
   const scoreResult = calcSleepScore(sleepRow, latestPattern);
 
   await dbRun(
     `INSERT INTO fitbit_sleep
-       (sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
+       (user_id, fitbit_account_id, sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
         deep_minutes, light_minutes, rem_minutes, is_main_sleep, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-    [date, sleepStartTs, sleepEndTs, sc.sleepMin, sc.awakeMin, sc.deepMin, sc.lightMin, sc.remMin, sleepStartTs]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [identity.userId, identity.fitbitAccountId, date, sleepStartTs, sleepEndTs, sc.sleepMin, sc.awakeMin,
+      sc.deepMin, sc.lightMin, sc.remMin, sleepStartTs]
   );
 
-  await dbRun(
+  const scoreInsert = await dbRun(
     `INSERT INTO sleep_score_result
-       (sleep_date, total_score, time_asleep_score, deep_rem_score, restoration_score, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [date, scoreResult.total_score, scoreResult.time_asleep_score,
+       (user_id, sleep_date, total_score, time_asleep_score, deep_rem_score, restoration_score, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [identity.userId, date, scoreResult.total_score, scoreResult.time_asleep_score,
       scoreResult.deep_rem_score, scoreResult.restoration_score, sleepEndTs]
   );
 
   await dbRun(
-    `INSERT INTO user_feedback (sleep_date, satisfaction_score, created_at) VALUES (?, ?, ?)`,
-    [date, sc.satisfaction, sleepEndTs]
+    `INSERT INTO user_feedback (user_id, sleep_date, satisfaction_score, created_at) VALUES (?, ?, ?, ?)`,
+    [identity.userId, date, sc.satisfaction, sleepEndTs]
   );
 
-  const stage2 = await updatePatternStage2(date, sc.satisfaction, scoreResult.total_score);
+  const stage2 = await updatePatternStage2(identity.userId, date, sc.satisfaction, scoreResult.total_score);
   const analysis = analyzePostSleep({
     sleepRow,
     scoreResult,
@@ -271,9 +335,10 @@ async function seedScenario(sc) {
     : analysis.analysis_text;
 
   await dbRun(
-    `INSERT INTO post_analysis_result (sleep_date, causes_json, analysis_text, created_at)
-     VALUES (?, ?, ?, ?)`,
-    [date, analysis.causes_json, analysisText, sleepEndTs]
+    `INSERT INTO post_analysis_result
+       (user_id, sleep_score_result_id, sleep_date, causes_json, analysis_text, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [identity.userId, scoreInsert.lastID, date, analysis.causes_json, analysisText, sleepEndTs]
   );
 
   const sensStr = Object.entries(stage2.env_sensitivity)
@@ -291,11 +356,13 @@ async function main() {
 
   await dbRun(`BEGIN TRANSACTION`);
   try {
-    await clearDemoData();
+    const identity = await ensureDemoIdentity();
+    await clearDemoData(identity);
     console.log("  기존 demo seed 데이터 클리어 완료");
+    console.log(`  demo 사용자: ${DEMO_LOGIN_ID} (user_id=${identity.userId}, device_id=${identity.deviceId})`);
 
     for (const sc of SCENARIOS) {
-      await seedScenario(sc);
+      await seedScenario(identity, sc);
     }
 
     await dbRun(`COMMIT`);

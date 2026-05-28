@@ -5,6 +5,7 @@ dotenv.config({ path: path.join(__dirname, "..", "..", ".env") });
 
 const db = require("./db");
 const DEMO_TAG = "demo-seed";
+const DEMO_LOGIN_ID = "u001";
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function run(query, params = []) {
@@ -12,6 +13,15 @@ function run(query, params = []) {
     db.run(query, params, function onRun(err) {
       if (err) return reject(err);
       resolve(this);
+    });
+  });
+}
+
+function get(query, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
     });
   });
 }
@@ -25,19 +35,26 @@ function dateStr(dayOffset) {
 
 async function main() {
   try {
-    await run(`DELETE FROM fitbit_heart WHERE created_at = ?`, [DEMO_TAG]);
-    await run(`DELETE FROM fitbit_steps WHERE created_at = ?`, [DEMO_TAG]);
-    await run(`DELETE FROM fitbit_calories WHERE created_at = ?`, [DEMO_TAG]);
-    await run(`DELETE FROM sensor_raw WHERE created_at = ?`, [DEMO_TAG]);
-    await run(`DELETE FROM pattern_profile`);
+    const user = await get(`SELECT id FROM users WHERE login_id = ?`, [DEMO_LOGIN_ID]);
+
+    if (!user) {
+      console.log("No demo user found.");
+      return;
+    }
+
+    await run(`DELETE FROM fitbit_heart WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM fitbit_steps WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM fitbit_calories WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM sensor_raw WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM pattern_profile WHERE user_id = ?`, [user.id]);
 
     for (let offset = -14; offset <= 0; offset += 1) {
       const date = dateStr(offset);
-      await run(`DELETE FROM prediction_result WHERE target_sleep_date = ?`, [date]);
-      await run(`DELETE FROM fitbit_sleep WHERE sleep_date = ?`, [date]);
-      await run(`DELETE FROM sleep_score_result WHERE sleep_date = ?`, [date]);
-      await run(`DELETE FROM user_feedback WHERE sleep_date = ?`, [date]);
-      await run(`DELETE FROM post_analysis_result WHERE sleep_date = ?`, [date]);
+      await run(`DELETE FROM post_analysis_result WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
+      await run(`DELETE FROM prediction_result WHERE user_id = ? AND target_sleep_date = ?`, [user.id, date]);
+      await run(`DELETE FROM user_feedback WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
+      await run(`DELETE FROM sleep_score_result WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
+      await run(`DELETE FROM fitbit_sleep WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
     }
 
     console.log("Cleaned 7-day demo seed data.");

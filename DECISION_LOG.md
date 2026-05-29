@@ -142,3 +142,26 @@ API 책임이 커지고 구조도 금방 복잡해집니다.
   - 현재 endpoint와 API 구조
 
 즉 소개 / 구조 / 실행 / 결정 / API 계획을 역할별로 나눠 둡니다.
+
+---
+
+## 8. Fitbit Web API 전환 정책
+
+신규 수집 연동은 기존 Fitbit Web API가 아니라 **Google Health API** 기준으로 진행합니다.
+
+현재 정책은 다음과 같습니다.
+
+- 기존 Fitbit OAuth / 수집 코드는 당장 삭제하지 않고 legacy 경로로 보존
+- 신규 OAuth 구현은 `google_health_accounts`와 `/google-health/*` endpoint 기준으로 추가
+- 기존 `FITBIT_CLIENT_ID`, `FITBIT_CLIENT_SECRET`, `FITBIT_REDIRECT_URI` 방식 확장은 중단
+- Fitbit 화면 문구와 연결 UI 정리는 Google Health OAuth 코드가 들어간 뒤 별도 커밋에서 진행
+- 기존 `fitbit_*` 데이터 테이블 재사용 여부는 데이터 수집 매핑 단계에서 결정
+
+### 왜 이렇게 했는가
+
+Fitbit Web API는 2026년 중 Google Health API로 전환되는 흐름이 공식화되어 있습니다.
+또한 신규 프로젝트에서 Fitbit OAuth credentials를 안정적으로 발급받기 어렵기 때문에,
+현재 프로젝트의 새 수집 기능을 Fitbit OAuth 기준으로 더 확장하면 곧 폐기될 구현에 의존하게 됩니다.
+
+따라서 이번 단계에서는 Fitbit 코드를 제거하지 않고, 다음 구현 단계부터 Google Health API를 새 연결 경로로 추가합니다.
+이 결정은 코드 변경보다 전환 기준 확정이 목적이며, 실제 OAuth endpoint와 DB schema 변경은 후속 커밋에서 진행합니다.

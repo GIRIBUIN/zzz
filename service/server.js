@@ -26,6 +26,15 @@ app.use("/predict", predictRouter);
 app.use("/result", resultRouter);
 app.use("/feedback", feedbackRouter);
 
+app.get("/js/runtime-config.js", (req, res) => {
+  const config = {
+    apiGatewayBaseUrl: process.env.API_GATEWAY_BASE_URL || ""
+  };
+
+  res.type("application/javascript");
+  res.send(`window.ZZZ_CONFIG = Object.assign({}, window.ZZZ_CONFIG, ${JSON.stringify(config)});`);
+});
+
 // Static files
 app.use(express.static(path.join(__dirname, "public")));
 

@@ -182,7 +182,7 @@ async function loadLatestPrediction() {
   if (!user) return;
 
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
+    const response = await fetch(window.ZZZAuth.resultLatestUrl(user));
     const result = await response.json();
 
     if (result.status !== "ok") throw new Error(result.message || "최신 예측 조회 실패");

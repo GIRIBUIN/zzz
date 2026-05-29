@@ -104,7 +104,7 @@ async function loadLatestSummary() {
   }
 
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
+    const response = await fetch(window.ZZZAuth.resultLatestUrl(user));
     const payload = await response.json();
     const data = payload.data || {};
     const latestScore = data.latest_sleep_score;

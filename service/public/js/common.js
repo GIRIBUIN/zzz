@@ -1,5 +1,15 @@
 const ZZZ_AUTH_STORAGE_KEY = "zzz.currentUser";
 
+function apiGatewayBaseUrl() {
+  return String(window.ZZZ_CONFIG?.apiGatewayBaseUrl || "").replace(/\/+$/, "");
+}
+
+function withApiGatewayBase(path) {
+  const baseUrl = apiGatewayBaseUrl();
+  if (!baseUrl) return path;
+  return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 function readCurrentUser() {
   try {
     const raw = localStorage.getItem(ZZZ_AUTH_STORAGE_KEY);
@@ -40,6 +50,10 @@ function withUserQuery(url, user = requireCurrentUser()) {
   const nextUrl = new URL(url, window.location.origin);
   nextUrl.searchParams.set("user_id", user.user_id);
   return `${nextUrl.pathname}${nextUrl.search}`;
+}
+
+function resultLatestUrl(user = requireCurrentUser()) {
+  return withApiGatewayBase(withUserQuery("/result/latest", user));
 }
 
 function withUserBody(body = {}, user = requireCurrentUser()) {
@@ -332,6 +346,7 @@ window.ZZZAuth = {
   requireUser: requireCurrentUser,
   requirePageUser,
   withUserQuery,
+  resultLatestUrl,
   withUserBody,
   fetchGoogleHealthStatus,
   disconnectGoogleHealth,

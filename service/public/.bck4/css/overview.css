@@ -2,37 +2,9 @@
 .overview-grid-bottom { display: grid; gap: 20px; }
 .overview-grid-bottom + .overview-grid-bottom { margin-top: 20px; }
 .summary-tile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.summary-tile {
-  min-height: 176px;
-  display: grid;
-  grid-template-rows: auto minmax(88px, 1fr) auto;
-  align-items: center;
-  justify-items: center;
-  text-align: center;
-  gap: 8px;
-}
-.summary-tile > .metric-label {
-  grid-row: 1;
-  justify-self: start;
-  align-self: start;
-}
-.summary-tile > .score-ring,
-.summary-tile > .metric-icon {
-  grid-row: 2;
-  align-self: center;
-}
-.summary-tile > .metric-value {
-  grid-row: 3;
-  align-self: end;
-}
+.summary-tile { min-height: 172px; display: grid; align-content: center; justify-items: center; text-align: center; gap: 10px; }
+.summary-tile > .metric-label { justify-self: start; align-self: start; }
 .summary-tile .metric-value { font-size: 25px; }
-.summary-tile .metric-icon {
-  font-size: 30px;
-  opacity: 0.92;
-}
-.summary-tile .stacked-risk {
-  gap: 3px;
-}
 .quick-check-card .btn { white-space: nowrap; }
 .quick-check-body { display: grid; gap: 14px; }
 .compact-date-field { padding: 13px 14px; }
@@ -59,4 +31,4 @@
 .trend-labels { display: none; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 10px; padding: 0 8px 2px; color: var(--muted); font-size: 12px; }
 .trend-labels span { text-align: center; }
 @media (max-width: 1100px) { .overview-grid-top { grid-template-columns: 1fr; } .env-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .summary-tile-grid, .trend-summary, .env-grid, .mood-picker { grid-template-columns: 1fr; } .summary-tile { min-height: 150px; } .trend-chart-shell { padding: 12px 8px 10px; } .trend-labels { padding: 0; } }
+@media (max-width: 760px) { .summary-tile-grid, .trend-summary, .env-grid, .mood-picker { grid-template-columns: 1fr; } .summary-tile { min-height: auto; } .trend-chart-shell { padding: 12px 8px 10px; } .trend-labels { padding: 0; } }

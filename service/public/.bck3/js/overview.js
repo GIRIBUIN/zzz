@@ -124,10 +124,8 @@ async function loadLatestSummary() {
       : "아직 데이터 없음";
 
     if (latestPred?.risk_level) {
-      const riskScore = latestPred.risk_score !== undefined ? `${formatScore(latestPred.risk_score, 0)}점` : "";
-      latestPrediction.innerHTML = riskScore
-        ? `<span class="stacked-risk"><span>${latestPred.risk_level}</span><span class="risk-score-line">${riskScore}</span></span>`
-        : latestPred.risk_level;
+      const riskScore = latestPred.risk_score !== undefined ? ` (${formatScore(latestPred.risk_score, 0)}점)` : "";
+      latestPrediction.textContent = `${latestPred.risk_level}${riskScore}`;
     } else {
       latestPrediction.textContent = "아직 데이터 없음";
     }
@@ -195,11 +193,7 @@ function renderTrendChart(history) {
     return;
   }
 
-  const rows = history.slice().sort((a, b) => {
-    const aKey = a.sleep_date || a.created_at || "";
-    const bKey = b.sleep_date || b.created_at || "";
-    return String(aKey).localeCompare(String(bKey));
-  });
+  const rows = history.slice().reverse();
   const scores = rows.map((row) => Number(row.total_score)).filter((value) => Number.isFinite(value));
   if (scores.length === 0) {
     trendEmpty.style.display = "block";
@@ -220,10 +214,10 @@ function renderTrendChart(history) {
   const labels = rows.map((row) => row.sleep_date || "");
   const width = 720;
   const height = 210;
-  const paddingLeft = 44;
-  const paddingRight = 44;
-  const paddingTop = 26;
-  const paddingBottom = 42;
+  const paddingLeft = 36;
+  const paddingRight = 18;
+  const paddingTop = 24;
+  const paddingBottom = 32;
   const usableWidth = width - paddingLeft - paddingRight;
   const usableHeight = height - paddingTop - paddingBottom;
   const denominator = Math.max(scores.length - 1, 1);
@@ -243,17 +237,15 @@ function renderTrendChart(history) {
     return `<line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" class="trend-grid-line"></line><text x="8" y="${y + 4}" class="trend-y-label">${tick}</text>`;
   }).join("");
 
+  const bestIndex = scores.indexOf(best);
+  const lastIndex = scores.length - 1;
   const pointNodes = points.map((p) => {
-    return `<circle cx="${p.x}" cy="${p.y}" r="4.5" class="trend-point"></circle><text x="${p.x}" y="${p.y - 12}" class="trend-point-label">${p.score.toFixed(0)}</text>`;
+    const showLabel = p.index === bestIndex || p.index === lastIndex;
+    return `<circle cx="${p.x}" cy="${p.y}" r="4.5" class="trend-point"></circle>${showLabel ? `<text x="${p.x}" y="${p.y - 12}" class="trend-point-label">${p.score.toFixed(0)}</text>` : ""}`;
   }).join("");
 
-  const xLabels = points.map((p) => {
-    const label = labels[p.index] ? labels[p.index].slice(5) : "-";
-    return `<text x="${p.x}" y="${height - 8}" class="trend-x-label">${label}</text>`;
-  }).join("");
-
-  trendChart.innerHTML = `${gridLines}<line x1="${paddingLeft}" y1="${height - paddingBottom}" x2="${width - paddingRight}" y2="${height - paddingBottom}" class="trend-axis-line"></line><polygon points="${areaPoints}" class="trend-area"></polygon><polyline points="${linePoints}" class="trend-line"></polyline>${pointNodes}${xLabels}`;
-  trendLabels.innerHTML = "";
+  trendChart.innerHTML = `${gridLines}<line x1="${paddingLeft}" y1="${height - paddingBottom}" x2="${width - paddingRight}" y2="${height - paddingBottom}" class="trend-axis-line"></line><polygon points="${areaPoints}" class="trend-area"></polygon><polyline points="${linePoints}" class="trend-line"></polyline>${pointNodes}`;
+  trendLabels.innerHTML = labels.map((label) => `<span>${label ? label.slice(5) : "-"}</span>`).join("");
 }
 
 async function loadSleepScoreTrend() {

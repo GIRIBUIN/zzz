@@ -125,13 +125,6 @@ function parseJsonArray(value) {
   return [];
 }
 
-function formatUnit(value, unit, digits = 1) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return "-";
-  const text = Number.isInteger(number) ? String(number) : number.toFixed(digits);
-  return `${text}${unit}`;
-}
-
 function renderPredictionInputs(snapshot) {
   if (!snapshot) {
     showInputEmpty();
@@ -140,13 +133,13 @@ function renderPredictionInputs(snapshot) {
 
   showInputFields();
   setText("inputUserId", snapshot.user_id || "user-01");
-  setText("inputAvgHr", formatUnit(snapshot.avg_hr_1h, " bpm", 1));
-  setText("inputStepsSum", formatUnit(snapshot.steps_sum_1h, "걸음", 0));
-  setText("inputCaloriesSum", formatUnit(snapshot.calories_sum_1h, " kcal", 0));
-  setText("inputAvgTemp", formatUnit(snapshot.avg_temp_1h, "°C", 1));
-  setText("inputAvgHumidity", formatUnit(snapshot.avg_humidity_1h, "%", 1));
-  setText("inputAvgMq5", snapshot.avg_mq5_index_1h !== undefined && snapshot.avg_mq5_index_1h !== null ? Number(snapshot.avg_mq5_index_1h).toFixed(2) : "-");
-  setText("inputRecentAvgSleep", formatUnit(snapshot.recent_avg_sleep_minutes, "분", 1));
+  setText("inputAvgHr", snapshot.avg_hr_1h ?? "-");
+  setText("inputStepsSum", snapshot.steps_sum_1h ?? "-");
+  setText("inputCaloriesSum", snapshot.calories_sum_1h ?? "-");
+  setText("inputAvgTemp", snapshot.avg_temp_1h ?? "-");
+  setText("inputAvgHumidity", snapshot.avg_humidity_1h ?? "-");
+  setText("inputAvgMq5", snapshot.avg_mq5_index_1h ?? "-");
+  setText("inputRecentAvgSleep", snapshot.recent_avg_sleep_minutes ?? "-");
 }
 
 function renderPredictionResult(prediction) {

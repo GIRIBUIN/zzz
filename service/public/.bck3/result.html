@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZZZ - 결과 보기</title>
+  <link rel="stylesheet" href="/css/common.css" />
+  <link rel="stylesheet" href="/css/result.css" />
+</head>
+<body>
+  <div class="app">
+    
+<header class="top-header">
+  <div class="top-header-inner">
+    <a href="/" class="brand" aria-label="ZZZ 개요로 이동">
+      <div class="brand-badge">Z</div>
+      <div class="brand-text">
+        <h1>ZZZ</h1>
+        <p>Smart Sleep Dashboard</p>
+      </div>
+    </a>
+
+    <div class="header-actions">
+      <div class="header-control">
+        <button id="menuButton" class="header-button icon-button" type="button" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+        <div id="menuPanel" class="popover-panel" aria-label="페이지 메뉴">
+          <div>
+            <p class="popover-title">Menu</p>
+            <nav class="menu-list">
+              <a href="/" class="menu-link" data-path="/"><span>개요</span><span class="menu-hint">Overview</span></a>
+              <a href="/presleep.html" class="menu-link" data-path="/presleep.html"><span>취침 전 예측</span><span class="menu-hint">Prediction</span></a>
+              <a href="/postsleep.html" class="menu-link" data-path="/postsleep.html"><span>기상 후 피드백</span><span class="menu-hint">Post-sleep</span></a>
+              <a href="/result.html" class="menu-link" data-path="/result.html"><span>결과 보기</span><span class="menu-hint">Result</span></a>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-control">
+        <button id="accountButton" class="header-button header-button-primary account-button" type="button" aria-label="계정 메뉴 열기" aria-expanded="false">Account</button>
+        <div id="accountPanel" class="popover-panel" aria-label="계정 메뉴">
+          <div id="authPanel" class="account-panel"></div>
+          <div id="authNotice" class="auth-notice"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>결과 보기</h1>
+          <p>현재 사용자 기준 최신 저장 결과를 요약합니다.</p>
+        </div>
+      </header>
+
+      <div id="pageStatus" class="status-bar">불러오는 중...</div>
+
+      <section class="result-grid">
+        <article id="feedbackCard" class="card">
+          <h2>최근 만족도</h2>
+          <p class="card-desc">기상 후 사용자가 입력한 최신 만족도입니다.</p>
+
+          <div id="feedbackEmpty" class="empty-state">아직 저장된 만족도 데이터가 없습니다.</div>
+
+          <div id="feedbackFields" class="result-card-body" style="display: none;">
+            <div class="metric-tile result-main-metric">
+              <span class="metric-label">만족도</span>
+              <span id="feedbackSatisfactionScore" class="metric-value green">-</span>
+              <div class="progress-track"><span id="feedbackSatisfactionBar" class="progress-fill green" style="--value:0%"></span></div>
+            </div>
+            <div class="result-meta-grid">
+              <div class="metric-tile"><span class="metric-label">수면일</span><span id="feedbackSleepDate" class="metric-value">-</span></div>
+              <div class="metric-tile"><span class="metric-label">저장 시각</span><span id="feedbackCreatedAt" class="metric-value">-</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article id="predictionCard" class="card">
+          <h2>최근 예측</h2>
+          <p class="card-desc">취침 전 예측된 최신 위험도 결과입니다.</p>
+
+          <div id="predictionEmpty" class="empty-state">아직 저장된 예측 데이터가 없습니다.</div>
+
+          <div id="predictionFields" class="result-card-body" style="display: none;">
+            <div class="metric-grid-2">
+              <div class="metric-tile"><span class="metric-label">위험도</span><span id="predictionRiskLevel" class="metric-value accent">-</span></div>
+              <div class="metric-tile">
+                <span class="metric-label">위험 점수</span>
+                <span id="predictionRiskScore" class="metric-value">-</span>
+                <div class="progress-track"><span id="predictionRiskBar" class="progress-fill" style="--value:0%"></span></div>
+              </div>
+            </div>
+            <div class="field"><span class="label">주요 원인</span><ul id="predictionReasons" class="list"></ul></div>
+            <div class="field"><span class="label">권장 행동</span><div id="predictionActionText" class="long-text">-</div></div>
+          </div>
+        </article>
+
+        <article id="sleepScoreCard" class="card">
+          <h2>최근 수면 점수</h2>
+          <p class="card-desc">가장 최근 수면 점수 계산 결과입니다. 100점 만점 기준입니다.</p>
+
+          <div id="sleepScoreEmpty" class="empty-state">아직 저장된 수면 점수 데이터가 없습니다.</div>
+
+          <div id="sleepScoreFields" class="result-card-body sleep-score-layout" style="display: none;">
+            <div class="score-ring" id="sleepScoreRing" style="--value:0; --ring-color: var(--blue);">
+              <div class="score-ring-inner">
+                <span id="sleepScoreTotal" class="score-ring-value">-</span>
+                <span class="score-ring-label">수면 점수</span>
+              </div>
+            </div>
+
+            <div class="score-row">
+              <div class="metric-tile"><span class="metric-label">수면 시간</span><span id="sleepScoreTimeAsleep" class="metric-value">-</span></div>
+              <div class="metric-tile"><span class="metric-label">깊은 수면/REM</span><span id="sleepScoreDeepRem" class="metric-value">-</span></div>
+              <div class="metric-tile"><span class="metric-label">회복도</span><span id="sleepScoreRestoration" class="metric-value">-</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article id="analysisCard" class="card result-detail-card">
+          <h2>최근 분석</h2>
+          <p class="card-desc">가장 최근 수면 결과에 대한 해석입니다.</p>
+
+          <div id="analysisEmpty" class="empty-state">아직 저장된 분석 데이터가 없습니다.</div>
+
+          <div id="analysisFields" class="field-list" style="display: none;">
+            <div class="field"><span class="label">주요 원인</span><ul id="analysisCauses" class="list"></ul></div>
+            <div class="field"><span class="label">분석</span><div id="analysisText" class="long-text">-</div></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/js/common.js"></script>
+    <script src="/js/result.js"></script>
+  </div>
+</body>
+</html>

@@ -3,8 +3,117 @@ Project zzz {
   Note: "ZZZ smart healthcare local database schema"
 }
 
+Table users {
+  id integer [pk, increment]
+  login_id text [not null]
+  password_hash text [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    login_id [unique, name: "uq_users_login_id"]
+  }
+}
+
+Table devices {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  iot_thing_name text [not null]
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    iot_thing_name [unique, name: "uq_devices_iot_thing_name"]
+    user_id [name: "idx_devices_user_id"]
+  }
+}
+
+Table google_health_accounts {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  access_token text [not null]
+  refresh_token text
+  token_expires_at text
+  scopes text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id [unique, name: "uq_google_health_accounts_user"]
+  }
+}
+
+Table google_health_heart {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  bpm integer [not null]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_google_health_heart_user_ts"]
+    google_health_account_id [name: "idx_google_health_heart_account_id"]
+  }
+}
+
+Table google_health_steps {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  steps integer [not null]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_google_health_steps_user_ts"]
+    google_health_account_id [name: "idx_google_health_steps_account_id"]
+  }
+}
+
+Table google_health_calories {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  calories real [not null]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_google_health_calories_user_ts"]
+    google_health_account_id [name: "idx_google_health_calories_account_id"]
+  }
+}
+
+Table google_health_sleep {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
+  sleep_date text [not null, note: "YYYY-MM-DD"]
+  start_time text
+  end_time text
+  minutes_asleep integer
+  minutes_awake integer
+  deep_minutes integer
+  light_minutes integer
+  rem_minutes integer
+  is_main_sleep integer [note: "1=true, 0=false"]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, sleep_date) [unique, name: "uq_google_health_sleep_user_date"]
+    google_health_account_id [name: "idx_google_health_sleep_account_id"]
+  }
+}
+
 Table sensor_raw {
   id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  device_id integer [not null, ref: > devices.id]
   ts text [not null, note: "ISO 8601 timestamp"]
   temperature real
   humidity real
@@ -13,23 +122,26 @@ Table sensor_raw {
   created_at text [default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    ts [name: "idx_sensor_raw_ts"]
+    (user_id, ts) [name: "idx_sensor_raw_user_ts"]
+    device_id [name: "idx_sensor_raw_device_id"]
   }
 }
 
 Table user_feedback {
   id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
   sleep_date text [not null]
   satisfaction_score real [not null, note: "0-100"]
   created_at text [default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    sleep_date [name: "idx_user_feedback_date"]
+    (user_id, sleep_date) [unique, name: "uq_user_feedback_user_date"]
   }
 }
 
 Table prediction_result {
   id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
   prediction_ts text [not null, note: "Execution time"]
   target_sleep_date text [note: "Intended sleep date"]
   risk_level text [not null, note: "LOW / MEDIUM / HIGH"]
@@ -40,13 +152,14 @@ Table prediction_result {
   created_at text [default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    prediction_ts [name: "idx_prediction_result_ts"]
-    target_sleep_date [name: "idx_prediction_result_target_date"]
+    (user_id, prediction_ts) [name: "idx_prediction_result_user_ts"]
+    (user_id, target_sleep_date) [name: "idx_prediction_result_user_target_date"]
   }
 }
 
 Table sleep_score_result {
   id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
   sleep_date text [not null]
   time_asleep_score real
   deep_rem_score real
@@ -55,25 +168,29 @@ Table sleep_score_result {
   created_at text [default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    sleep_date [name: "idx_sleep_score_result_date"]
+    (user_id, sleep_date) [unique, name: "uq_sleep_score_result_user_date"]
   }
 }
 
 Table post_analysis_result {
   id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  sleep_score_result_id integer [ref: > sleep_score_result.id]
   sleep_date text [not null]
   causes_json text [note: "JSON array of causes"]
   analysis_text text
   created_at text [default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    sleep_date [name: "idx_post_analysis_result_date"]
+    (user_id, sleep_date) [unique, name: "uq_post_analysis_result_user_date"]
+    sleep_score_result_id [name: "idx_post_analysis_result_score_id"]
   }
 }
 
 Table pattern_profile {
   id integer [pk, increment]
-  sleep_date text [note: "YYYY-MM-DD"]
+  user_id integer [not null, ref: > users.id]
+  sleep_date text [note: "YYYY-MM-DD, source sleep date for this pattern update"]
   stage text [note: "stage1 / stage2"]
   updated_at text [not null]
   avg_sleep_minutes real
@@ -84,7 +201,7 @@ Table pattern_profile {
   pattern_snapshot_json text
 
   indexes {
-    updated_at [name: "idx_pattern_profile_updated_at"]
-    (sleep_date, stage) [unique, name: "uq_pattern_profile_sleep_date_stage"]
+    (user_id, updated_at) [name: "idx_pattern_profile_user_updated_at"]
+    (user_id, sleep_date, stage) [unique, name: "uq_pattern_profile_user_sleep_date_stage"]
   }
 }

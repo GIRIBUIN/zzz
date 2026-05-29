@@ -60,8 +60,21 @@ async function loadHealth() {
 }
 
 async function loadLatestSummary() {
+  const user = window.ZZZAuth.requirePageUser({
+    statusElement: healthStatus,
+    disabledSelectors: ["#quickSubmitBtn"],
+    message: "로그인 후 사용자별 요약을 조회할 수 있습니다."
+  });
+  if (!user) {
+    latestSleepScore.textContent = "로그인 필요";
+    latestFeedback.textContent = "로그인 필요";
+    latestPrediction.textContent = "로그인 필요";
+    renderRoomEnvironment(null, null);
+    return;
+  }
+
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest"));
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
     const payload = await response.json();
     const data = payload.data || {};
 
@@ -92,6 +105,13 @@ async function loadLatestSummary() {
 }
 
 async function submitFeedback() {
+  const user = window.ZZZAuth.requirePageUser({
+    statusElement: feedbackMessage,
+    disabledSelectors: ["#quickSubmitBtn"],
+    message: "로그인 후 feedback을 저장할 수 있습니다."
+  });
+  if (!user) return;
+
   const sleep_date = sleepDateInput.value;
   const satisfaction_score = Number(satisfactionScoreInput.value);
   const originalButtonText = submitButton.textContent;
@@ -106,7 +126,7 @@ async function submitFeedback() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        user_id: window.ZZZAuth.requireUser().user_id,
+        user_id: user.user_id,
         sleep_date,
         satisfaction_score
       })
@@ -210,8 +230,21 @@ function renderTrendChart(history) {
 }
 
 async function loadSleepScoreTrend() {
+  const user = window.ZZZAuth.requirePageUser({
+    disabledSelectors: ["#quickSubmitBtn"]
+  });
+  if (!user) {
+    trendEmpty.style.display = "block";
+    trendChartWrap.style.display = "none";
+    trendEmpty.textContent = "로그인 후 sleep score 그래프를 조회할 수 있습니다.";
+    trendLatestScore.textContent = "-";
+    trendBestScore.textContent = "-";
+    trendAverageScore.textContent = "-";
+    return;
+  }
+
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/sleep-score-history?limit=7"));
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/sleep-score-history?limit=7", user));
     const payload = await response.json();
     const history = payload.data?.history || [];
     renderTrendChart(history);

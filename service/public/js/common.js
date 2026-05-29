@@ -32,6 +32,19 @@ function clearCurrentUser() {
   localStorage.removeItem(ZZZ_AUTH_STORAGE_KEY);
 }
 
+function removeUserIdQueryParam() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("user_id")) return;
+
+  url.searchParams.delete("user_id");
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", nextUrl);
+}
+
+function syncUserQueryParam() {
+  removeUserIdQueryParam();
+}
+
 function requireCurrentUser() {
   const user = readCurrentUser();
 
@@ -53,6 +66,26 @@ function withUserBody(body = {}, user = requireCurrentUser()) {
     ...body,
     user_id: user.user_id
   };
+}
+
+function requirePageUser(options = {}) {
+  const user = readCurrentUser();
+  const statusElement = options.statusElement || null;
+  const disabledSelectors = options.disabledSelectors || [];
+  const message = options.message || "로그인 후 사용자별 데이터를 조회합니다.";
+
+  disabledSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((element) => {
+      element.disabled = !user;
+    });
+  });
+
+  if (!user && statusElement) {
+    statusElement.textContent = message;
+    statusElement.style.color = "#ff4e00";
+  }
+
+  return user;
 }
 
 async function fetchFitbitStatus(user = requireCurrentUser()) {
@@ -86,8 +119,9 @@ function authPanelHtml(user) {
         <input id="authLoginId" class="input auth-input" type="text" placeholder="login_id" value="u001" />
         <input id="authPassword" class="input auth-input" type="password" placeholder="password" value="demo1234" />
         <button id="authLoginBtn" class="btn btn-primary auth-button" type="button">Login</button>
+        <button id="authRegisterBtn" class="btn btn-secondary auth-button" type="button">Create account</button>
       </div>
-      <div id="authMessage" class="auth-message">로그인 후 사용자별 데이터를 조회합니다.</div>
+      <div id="authMessage" class="auth-message">URL의 user_id는 로그인으로 사용하지 않습니다.</div>
     `;
   }
 
@@ -128,16 +162,18 @@ function renderAuthPanel() {
 
   if (!user) {
     const loginBtn = document.getElementById("authLoginBtn");
+    const registerBtn = document.getElementById("authRegisterBtn");
     const messageEl = document.getElementById("authMessage");
 
-    loginBtn?.addEventListener("click", async () => {
+    async function submitAuth(endpoint, pendingMessage) {
       const login_id = document.getElementById("authLoginId")?.value || "";
       const password = document.getElementById("authPassword")?.value || "";
       loginBtn.disabled = true;
-      messageEl.textContent = "로그인 중...";
+      registerBtn.disabled = true;
+      messageEl.textContent = pendingMessage;
 
       try {
-        const response = await fetch("/auth/login", {
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ login_id, password })
@@ -151,10 +187,19 @@ function renderAuthPanel() {
         saveCurrentUser(payload.data);
         window.location.reload();
       } catch (error) {
-        messageEl.textContent = `로그인 실패: ${error.message}`;
+        messageEl.textContent = `요청 실패: ${error.message}`;
       } finally {
         loginBtn.disabled = false;
+        registerBtn.disabled = false;
       }
+    }
+
+    loginBtn?.addEventListener("click", () => {
+      submitAuth("/auth/login", "로그인 중...");
+    });
+
+    registerBtn?.addEventListener("click", () => {
+      submitAuth("/auth/register", "회원가입 중...");
     });
     return;
   }
@@ -174,9 +219,11 @@ function renderAuthPanel() {
 window.ZZZAuth = {
   getUser: readCurrentUser,
   requireUser: requireCurrentUser,
+  requirePageUser,
   withUserQuery,
   withUserBody,
   fetchFitbitStatus
 };
 
+syncUserQueryParam();
 window.addEventListener("DOMContentLoaded", createAuthPanel);

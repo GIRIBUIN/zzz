@@ -173,10 +173,22 @@ function renderAnalysisCard(analysis) {
 }
 
 async function loadLatestResult() {
+  const user = window.ZZZAuth.requirePageUser({
+    statusElement: pageStatus,
+    message: "로그인 후 최신 결과를 조회할 수 있습니다."
+  });
+  if (!user) {
+    showEmpty("feedback");
+    showEmpty("prediction");
+    showEmpty("sleepScore");
+    showEmpty("analysis");
+    return;
+  }
+
   renderPageStatus("불러오는 중...");
 
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest"));
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
     const result = await response.json();
 
     if (result.status !== "ok") {

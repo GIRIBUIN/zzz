@@ -156,11 +156,18 @@ function renderPredictionResult(prediction) {
 }
 
 async function loadLatestPrediction() {
+  const user = window.ZZZAuth.requirePageUser({
+    statusElement: predictionStatus,
+    disabledSelectors: ["#predictBtn", "#skipCollect"],
+    message: "로그인 후 최신 prediction 데이터를 조회할 수 있습니다."
+  });
+  if (!user) return;
+
   predictionStatus.textContent = "최신 prediction 데이터를 불러오는 중...";
   predictionStatus.style.color = "#727477";
 
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest"));
+    const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
     const result = await response.json();
 
     if (result.status !== "ok") {
@@ -191,6 +198,13 @@ async function loadLatestPrediction() {
 }
 
 async function requestPrediction() {
+  const user = window.ZZZAuth.requirePageUser({
+    statusElement: predictionStatus,
+    disabledSelectors: ["#predictBtn", "#skipCollect"],
+    message: "로그인 후 prediction을 계산할 수 있습니다."
+  });
+  if (!user) return;
+
   predictionStatus.textContent = "prediction을 계산하는 중...";
 
   try {
@@ -202,7 +216,7 @@ async function requestPrediction() {
     const predictResponse = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(window.ZZZAuth.withUserBody({}))
+      body: JSON.stringify(window.ZZZAuth.withUserBody({}, user))
     });
 
     const predictResult = await predictResponse.json();

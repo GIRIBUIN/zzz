@@ -37,25 +37,15 @@ async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
   const [heartRow, stepsRow, sensorRow, sleepRows, latestPattern, lowSatRow, caloriesRow] = await Promise.all([
     dbGet(
       `SELECT AVG(bpm) AS avg_hr_1h, MAX(bpm) AS max_hr_1h
-       FROM (
-         SELECT bpm FROM fitbit_heart
-         WHERE user_id = ? AND ts >= ?
-         UNION ALL
-         SELECT bpm FROM google_health_heart
-         WHERE user_id = ? AND ts >= ?
-       )`,
-      [userId, sinceIso, userId, sinceIso]
+       FROM google_health_heart
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ),
     dbGet(
       `SELECT COALESCE(SUM(steps), 0) AS steps_sum_1h
-       FROM (
-         SELECT steps FROM fitbit_steps
-         WHERE user_id = ? AND ts >= ?
-         UNION ALL
-         SELECT steps FROM google_health_steps
-         WHERE user_id = ? AND ts >= ?
-       )`,
-      [userId, sinceIso, userId, sinceIso]
+       FROM google_health_steps
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ),
     dbGet(
       `SELECT AVG(temperature) AS avg_temp_1h,
@@ -68,15 +58,10 @@ async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
     ),
     dbAll(
       `SELECT minutes_asleep
-       FROM (
-         SELECT sleep_date, minutes_asleep FROM fitbit_sleep
-         WHERE user_id = ? AND is_main_sleep = 1
-         UNION ALL
-         SELECT sleep_date, minutes_asleep FROM google_health_sleep
-         WHERE user_id = ? AND is_main_sleep = 1
-       )
+       FROM google_health_sleep
+       WHERE user_id = ? AND is_main_sleep = 1
        ORDER BY sleep_date DESC LIMIT ?`,
-      [userId, userId, RECENT_N_DAYS]
+      [userId, RECENT_N_DAYS]
     ),
     dbGet(
       `SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend
@@ -98,14 +83,9 @@ async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
     ),
     dbGet(
       `SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h
-       FROM (
-         SELECT calories FROM fitbit_calories
-         WHERE user_id = ? AND ts >= ?
-         UNION ALL
-         SELECT calories FROM google_health_calories
-         WHERE user_id = ? AND ts >= ?
-       )`,
-      [userId, sinceIso, userId, sinceIso]
+       FROM google_health_calories
+       WHERE user_id = ? AND ts >= ?`,
+      [userId, sinceIso]
     ).catch(() => null)  // defensive: returns null if table not yet populated
   ]);
 

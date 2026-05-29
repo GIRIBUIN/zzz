@@ -6,7 +6,6 @@ dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 const healthRouter = require("./routes/health");
 const authRouter = require("./routes/auth");
-const fitbitRouter = require("./routes/fitbit");
 const googleHealthRouter = require("./routes/googleHealth");
 const predictRouter = require("./routes/predict");
 const resultRouter = require("./routes/result");
@@ -22,7 +21,6 @@ app.use(express.urlencoded({ extended: true }));
 // API routes
 app.use("/health", healthRouter);
 app.use("/auth", authRouter);
-app.use("/fitbit", fitbitRouter);
 app.use("/google-health", googleHealthRouter);
 app.use("/predict", predictRouter);
 app.use("/result", resultRouter);

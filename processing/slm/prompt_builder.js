@@ -144,7 +144,7 @@ function _analysisStable(analysisResult, scoreResult, satisfactionScore, sleepRo
   return lines.join("\n");
 }
 
-// sleepRow:       fitbit_sleep row (cold start 시 원시 수면 데이터 전달용)
+// sleepRow:       wearable sleep row (cold start 시 원시 수면 데이터 전달용)
 // patternProfile: pattern_profile 최신 row (null이면 cold start)
 function buildAnalysisPrompt(analysisResult, scoreResult, satisfactionScore, patternProfile, sleepRow) {
   return isColdStart(patternProfile)

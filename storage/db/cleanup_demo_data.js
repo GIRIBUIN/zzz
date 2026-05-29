@@ -42,9 +42,9 @@ async function main() {
       return;
     }
 
-    await run(`DELETE FROM fitbit_heart WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
-    await run(`DELETE FROM fitbit_steps WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
-    await run(`DELETE FROM fitbit_calories WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM google_health_heart WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM google_health_steps WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
+    await run(`DELETE FROM google_health_calories WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
     await run(`DELETE FROM sensor_raw WHERE user_id = ? AND created_at = ?`, [user.id, DEMO_TAG]);
     await run(`DELETE FROM pattern_profile WHERE user_id = ?`, [user.id]);
 
@@ -54,7 +54,7 @@ async function main() {
       await run(`DELETE FROM prediction_result WHERE user_id = ? AND target_sleep_date = ?`, [user.id, date]);
       await run(`DELETE FROM user_feedback WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
       await run(`DELETE FROM sleep_score_result WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
-      await run(`DELETE FROM fitbit_sleep WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
+      await run(`DELETE FROM google_health_sleep WHERE user_id = ? AND sleep_date = ?`, [user.id, date]);
     }
 
     console.log("Cleaned 7-day demo seed data.");

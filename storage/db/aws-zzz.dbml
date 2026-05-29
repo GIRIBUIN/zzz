@@ -23,22 +23,6 @@ Table devices {
   }
 }
 
-Table fitbit_accounts {
-  id integer [pk, increment]
-  user_id integer [not null, ref: > users.id]
-  fitbit_user_id text [not null]
-  access_token text [not null]
-  refresh_token text [not null]
-  token_expires_at text
-  created_at text [default: `CURRENT_TIMESTAMP`]
-  updated_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    user_id [name: "idx_fitbit_accounts_user_id"]
-    (user_id, fitbit_user_id) [unique, name: "uq_fitbit_accounts_user"]
-  }
-}
-
 Table google_health_accounts {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]
@@ -135,70 +119,6 @@ Table sensor_raw {
   indexes {
     (user_id, ts) [name: "idx_sensor_raw_user_ts"]
     device_id [name: "idx_sensor_raw_device_id"]
-  }
-}
-
-Table fitbit_heart {
-  id integer [pk, increment]
-  user_id integer [not null, ref: > users.id]
-  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
-  ts text [not null, note: "ISO 8601 timestamp"]
-  bpm integer [not null]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, ts) [unique, name: "uq_fitbit_heart_user_ts"]
-    fitbit_account_id [name: "idx_fitbit_heart_account_id"]
-  }
-}
-
-Table fitbit_steps {
-  id integer [pk, increment]
-  user_id integer [not null, ref: > users.id]
-  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
-  ts text [not null, note: "ISO 8601 timestamp"]
-  steps integer [not null]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, ts) [unique, name: "uq_fitbit_steps_user_ts"]
-    fitbit_account_id [name: "idx_fitbit_steps_account_id"]
-  }
-}
-
-Table fitbit_calories {
-  id integer [pk, increment]
-  user_id integer [not null, ref: > users.id]
-  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
-  ts text [not null, note: "ISO 8601 timestamp"]
-  calories real [not null]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, ts) [unique, name: "uq_fitbit_calories_user_ts"]
-    fitbit_account_id [name: "idx_fitbit_calories_account_id"]
-  }
-}
-
-Table fitbit_sleep {
-  id integer [pk, increment]
-  user_id integer [not null, ref: > users.id]
-  fitbit_account_id integer [not null, ref: > fitbit_accounts.id]
-  sleep_date text [not null, note: "YYYY-MM-DD"]
-  start_time text
-  end_time text
-  minutes_asleep integer
-  minutes_awake integer
-  deep_minutes integer
-  light_minutes integer
-  rem_minutes integer
-  is_main_sleep integer [note: "1=true, 0=false"]
-  raw_json text [note: "Original Fitbit sleep response snapshot"]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, sleep_date) [unique, name: "uq_fitbit_sleep_user_date"]
-    fitbit_account_id [name: "idx_fitbit_sleep_account_id"]
   }
 }
 

@@ -17,58 +17,6 @@ Table sensor_raw {
   }
 }
 
-Table fitbit_heart {
-  id integer [pk, increment]
-  ts text [not null, unique, note: "ISO 8601 timestamp"]
-  bpm integer [not null]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    ts [unique, name: "uq_fitbit_heart_ts"]
-  }
-}
-
-Table fitbit_steps {
-  id integer [pk, increment]
-  ts text [not null, unique, note: "ISO 8601 timestamp"]
-  steps integer [not null]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    ts [unique, name: "uq_fitbit_steps_ts"]
-  }
-}
-
-Table fitbit_calories {
-  id integer [pk, increment]
-  ts text [not null, unique, note: "ISO 8601 timestamp"]
-  calories real [not null]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    ts [unique, name: "uq_fitbit_calories_ts"]
-  }
-}
-
-Table fitbit_sleep {
-  id integer [pk, increment]
-  sleep_date text [not null, unique, note: "YYYY-MM-DD"]
-  start_time text
-  end_time text
-  minutes_asleep integer
-  minutes_awake integer
-  deep_minutes integer
-  light_minutes integer
-  rem_minutes integer
-  is_main_sleep integer [note: "1=true, 0=false"]
-  raw_json text [note: "Original Fitbit sleep response snapshot"]
-  created_at text [default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    sleep_date [unique, name: "uq_fitbit_sleep_date"]
-  }
-}
-
 Table user_feedback {
   id integer [pk, increment]
   sleep_date text [not null]

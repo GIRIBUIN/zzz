@@ -7,7 +7,7 @@
  *
  * 주의:
  * - Google Health 전환 전제
- * - seed 단계에서 Fitbit / Google Health OAuth account는 생성하지 않음
+ * - seed 단계에서 Google Health OAuth account는 생성하지 않음
  * - demo 원천 row는 OAuth account 없이 저장해 사용자가 직접 연결하는 흐름을 유지함
  */
 
@@ -278,21 +278,6 @@ function buildSensorRows(dayOffset, temp, humidity, mq5) {
 
 async function clearDemoData(identity) {
   await dbRun(
-    `DELETE FROM fitbit_heart WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
-
-  await dbRun(
-    `DELETE FROM fitbit_steps WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
-
-  await dbRun(
-    `DELETE FROM fitbit_calories WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
-
-  await dbRun(
     `DELETE FROM sensor_raw WHERE user_id = ? AND created_at = ?`,
     [identity.userId, DEMO_TAG]
   );
@@ -337,11 +322,6 @@ async function clearDemoData(identity) {
 
     await dbRun(
       `DELETE FROM sleep_score_result WHERE user_id = ? AND sleep_date = ?`,
-      [identity.userId, date]
-    );
-
-    await dbRun(
-      `DELETE FROM fitbit_sleep WHERE user_id = ? AND sleep_date = ?`,
       [identity.userId, date]
     );
 

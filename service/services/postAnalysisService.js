@@ -58,20 +58,11 @@ async function generatePostAnalysisForDate(userIdOrSleepDate, sleepDateOrSatisfa
     dbGet(
       `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
               deep_minutes, light_minutes, rem_minutes, is_main_sleep
-       FROM (
-         SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
-                deep_minutes, light_minutes, rem_minutes, is_main_sleep, created_at
-         FROM google_health_sleep
-         WHERE user_id = ? AND sleep_date = ?
-         UNION ALL
-         SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
-                deep_minutes, light_minutes, rem_minutes, is_main_sleep, created_at
-         FROM fitbit_sleep
-         WHERE user_id = ? AND sleep_date = ?
-       )
+       FROM google_health_sleep
+       WHERE user_id = ? AND sleep_date = ?
        ORDER BY created_at DESC
        LIMIT 1`,
-      [userId, sleepDate, userId, sleepDate]
+      [userId, sleepDate]
     ),
     dbGet(
       `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score

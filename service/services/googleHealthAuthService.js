@@ -239,16 +239,26 @@ async function saveGoogleHealthAccount(userId, tokenJson) {
   const scopes = tokenJson.scope || null;
 
   await dbRun(
-    `INSERT INTO google_health_accounts
-       (user_id, access_token, refresh_token, token_expires_at, scopes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(user_id)
-     DO UPDATE SET
-       access_token = excluded.access_token,
-       refresh_token = COALESCE(excluded.refresh_token, google_health_accounts.refresh_token),
-       token_expires_at = excluded.token_expires_at,
-       scopes = COALESCE(excluded.scopes, google_health_accounts.scopes),
-       updated_at = excluded.updated_at`,
+    db.engine === "mysql"
+      ? `INSERT INTO google_health_accounts
+           (user_id, access_token, refresh_token, token_expires_at, scopes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           access_token = VALUES(access_token),
+           refresh_token = COALESCE(VALUES(refresh_token), refresh_token),
+           token_expires_at = VALUES(token_expires_at),
+           scopes = COALESCE(VALUES(scopes), scopes),
+           updated_at = VALUES(updated_at)`
+      : `INSERT INTO google_health_accounts
+           (user_id, access_token, refresh_token, token_expires_at, scopes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id)
+         DO UPDATE SET
+           access_token = excluded.access_token,
+           refresh_token = COALESCE(excluded.refresh_token, google_health_accounts.refresh_token),
+           token_expires_at = excluded.token_expires_at,
+           scopes = COALESCE(excluded.scopes, google_health_accounts.scopes),
+           updated_at = excluded.updated_at`,
     [
       userId,
       tokenJson.access_token,

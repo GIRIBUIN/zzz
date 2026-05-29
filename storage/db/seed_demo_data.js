@@ -140,6 +140,41 @@ function dbRun(sql, params = []) {
   });
 }
 
+function insertIgnoreSql(table, columns) {
+  const placeholders = columns.map(() => "?").join(", ");
+  const columnList = columns.join(", ");
+
+  return db.engine === "mysql"
+    ? `INSERT IGNORE INTO ${table} (${columnList}) VALUES (${placeholders})`
+    : `INSERT OR IGNORE INTO ${table} (${columnList}) VALUES (${placeholders})`;
+}
+
+function upsertGoogleHealthSleepSql() {
+  const insertSql = `INSERT INTO google_health_sleep
+       (user_id, google_health_account_id, sleep_date, start_time, end_time,
+        minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes,
+        is_main_sleep, raw_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`;
+
+  if (db.engine === "mysql") {
+    return `${insertSql}
+       ON DUPLICATE KEY UPDATE
+         google_health_account_id = VALUES(google_health_account_id),
+         start_time = VALUES(start_time),
+         end_time = VALUES(end_time),
+         minutes_asleep = VALUES(minutes_asleep),
+         minutes_awake = VALUES(minutes_awake),
+         deep_minutes = VALUES(deep_minutes),
+         light_minutes = VALUES(light_minutes),
+         rem_minutes = VALUES(rem_minutes),
+         is_main_sleep = VALUES(is_main_sleep),
+         raw_json = VALUES(raw_json),
+         created_at = VALUES(created_at)`;
+  }
+
+  return insertSql.replace("INSERT INTO", "INSERT OR REPLACE INTO");
+}
+
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -154,8 +189,7 @@ async function ensureDemoIdentity() {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
   await dbRun(
-    `INSERT OR IGNORE INTO users (login_id, password_hash, created_at, updated_at)
-     VALUES (?, ?, ?, ?)`,
+    insertIgnoreSql("users", ["login_id", "password_hash", "created_at", "updated_at"]),
     [DEMO_LOGIN_ID, passwordHash, now, now]
   );
 
@@ -172,8 +206,7 @@ async function ensureDemoIdentity() {
   );
 
   await dbRun(
-    `INSERT OR IGNORE INTO devices (user_id, iot_thing_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?)`,
+    insertIgnoreSql("devices", ["user_id", "iot_thing_name", "created_at", "updated_at"]),
     [user.id, DEMO_DEVICE_NAME, now, now]
   );
 
@@ -277,25 +310,32 @@ function buildSensorRows(dayOffset, temp, humidity, mq5) {
 }
 
 async function clearDemoData(identity) {
-  await dbRun(
-    `DELETE FROM sensor_raw WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
+  if (db.engine === "mysql") {
+    await dbRun(`DELETE FROM sensor_raw WHERE user_id = ?`, [identity.userId]);
+    await dbRun(`DELETE FROM google_health_heart WHERE user_id = ?`, [identity.userId]);
+    await dbRun(`DELETE FROM google_health_steps WHERE user_id = ?`, [identity.userId]);
+    await dbRun(`DELETE FROM google_health_calories WHERE user_id = ?`, [identity.userId]);
+  } else {
+    await dbRun(
+      `DELETE FROM sensor_raw WHERE user_id = ? AND created_at = ?`,
+      [identity.userId, DEMO_TAG]
+    );
 
-  await dbRun(
-    `DELETE FROM google_health_heart WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
+    await dbRun(
+      `DELETE FROM google_health_heart WHERE user_id = ? AND created_at = ?`,
+      [identity.userId, DEMO_TAG]
+    );
 
-  await dbRun(
-    `DELETE FROM google_health_steps WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
+    await dbRun(
+      `DELETE FROM google_health_steps WHERE user_id = ? AND created_at = ?`,
+      [identity.userId, DEMO_TAG]
+    );
 
-  await dbRun(
-    `DELETE FROM google_health_calories WHERE user_id = ? AND created_at = ?`,
-    [identity.userId, DEMO_TAG]
-  );
+    await dbRun(
+      `DELETE FROM google_health_calories WHERE user_id = ? AND created_at = ?`,
+      [identity.userId, DEMO_TAG]
+    );
+  }
 
   await dbRun(
     `DELETE FROM pattern_profile WHERE user_id = ?`,
@@ -337,49 +377,65 @@ async function seedIntraday(identity, sc) {
   const bpms = buildBpmArray(sc.hr);
   const steps = buildStepsArray(sc.steps);
   const calories = buildCaloriesArray(sc.calories);
+  const createdAt = db.engine === "mysql" ? new Date().toISOString() : DEMO_TAG;
 
   for (let i = 0; i < 60; i += 1) {
     const ts = presleepMinuteTs(sc.dayOffset, i);
 
     await dbRun(
-      `INSERT OR IGNORE INTO google_health_heart
-         (user_id, google_health_account_id, ts, bpm, raw_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      insertIgnoreSql("google_health_heart", [
+        "user_id",
+        "google_health_account_id",
+        "ts",
+        "bpm",
+        "raw_json",
+        "created_at"
+      ]),
       [
         identity.userId,
         null,
         ts,
         bpms[i],
         JSON.stringify({ source: "demo-seed", bpm: bpms[i] }),
-        DEMO_TAG,
+        createdAt,
       ]
     );
 
     await dbRun(
-      `INSERT OR IGNORE INTO google_health_steps
-         (user_id, google_health_account_id, ts, steps, raw_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      insertIgnoreSql("google_health_steps", [
+        "user_id",
+        "google_health_account_id",
+        "ts",
+        "steps",
+        "raw_json",
+        "created_at"
+      ]),
       [
         identity.userId,
         null,
         ts,
         steps[i],
         JSON.stringify({ source: "demo-seed", steps: steps[i] }),
-        DEMO_TAG,
+        createdAt,
       ]
     );
 
     await dbRun(
-      `INSERT OR IGNORE INTO google_health_calories
-         (user_id, google_health_account_id, ts, calories, raw_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      insertIgnoreSql("google_health_calories", [
+        "user_id",
+        "google_health_account_id",
+        "ts",
+        "calories",
+        "raw_json",
+        "created_at"
+      ]),
       [
         identity.userId,
         null,
         ts,
         calories[i],
         JSON.stringify({ source: "demo-seed", calories: calories[i] }),
-        DEMO_TAG,
+        createdAt,
       ]
     );
   }
@@ -397,7 +453,7 @@ async function seedIntraday(identity, sc) {
         row.humidity,
         row.mq5_raw,
         row.mq5_index,
-        DEMO_TAG,
+        createdAt,
       ]
     );
   }
@@ -465,11 +521,7 @@ async function seedScenario(identity, sc) {
   };
 
   await dbRun(
-    `INSERT OR REPLACE INTO google_health_sleep
-       (user_id, google_health_account_id, sleep_date, start_time, end_time,
-        minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes,
-        is_main_sleep, raw_json, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    upsertGoogleHealthSleepSql(),
     [
       identity.userId,
       null,
@@ -585,7 +637,7 @@ async function main() {
   console.log(" seed_demo_data - 7일 시연 데이터");
   console.log("=".repeat(56));
 
-  await dbRun(`BEGIN TRANSACTION`);
+  await dbRun(db.engine === "mysql" ? `START TRANSACTION` : `BEGIN TRANSACTION`);
 
   try {
     const identity = await ensureDemoIdentity();

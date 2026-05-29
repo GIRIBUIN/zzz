@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Google Health API 데이터를 수집해 local SQLite 원천 테이블에 저장한다.
+ * Google Health API 데이터를 수집해 configured DB 원천 테이블에 저장한다.
  *
  * 사용법:
  *   node rpi/google_health/collect_google_health.js --mode presleep
@@ -34,6 +34,41 @@ function dbRun(sql, params = []) {
       resolve({ lastID: this.lastID, changes: this.changes });
     });
   });
+}
+
+function insertIgnoreSql(table, columns) {
+  const placeholders = columns.map(() => '?').join(', ');
+  const columnList = columns.join(', ');
+
+  return db.engine === 'mysql'
+    ? `INSERT IGNORE INTO ${table} (${columnList}) VALUES (${placeholders})`
+    : `INSERT OR IGNORE INTO ${table} (${columnList}) VALUES (${placeholders})`;
+}
+
+function upsertSleepSql() {
+  const insertSql = `INSERT INTO google_health_sleep (
+     user_id, google_health_account_id, sleep_date, start_time, end_time,
+     minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes,
+     is_main_sleep, raw_json, created_at
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`;
+
+  if (db.engine === 'mysql') {
+    return `${insertSql}
+      ON DUPLICATE KEY UPDATE
+        google_health_account_id = VALUES(google_health_account_id),
+        start_time = VALUES(start_time),
+        end_time = VALUES(end_time),
+        minutes_asleep = VALUES(minutes_asleep),
+        minutes_awake = VALUES(minutes_awake),
+        deep_minutes = VALUES(deep_minutes),
+        light_minutes = VALUES(light_minutes),
+        rem_minutes = VALUES(rem_minutes),
+        is_main_sleep = VALUES(is_main_sleep),
+        raw_json = VALUES(raw_json),
+        created_at = VALUES(created_at)`;
+  }
+
+  return insertSql.replace('INSERT INTO', 'INSERT OR REPLACE INTO');
 }
 
 function normalizePositiveInteger(value, fieldName, defaultValue = null) {
@@ -223,9 +258,14 @@ async function saveHeartRaw(context, points) {
     if (!ts || !Number.isFinite(bpm)) continue;
 
     await dbRun(
-      `INSERT OR IGNORE INTO google_health_heart
-         (user_id, google_health_account_id, ts, bpm, raw_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      insertIgnoreSql('google_health_heart', [
+        'user_id',
+        'google_health_account_id',
+        'ts',
+        'bpm',
+        'raw_json',
+        'created_at'
+      ]),
       [context.user_id, context.google_health_account_id, toKstIsoLocal(ts), Math.round(bpm), JSON.stringify(point), now]
     );
     saved += 1;
@@ -245,9 +285,14 @@ async function saveStepsRaw(context, points) {
     if (!ts || !Number.isFinite(steps)) continue;
 
     await dbRun(
-      `INSERT OR IGNORE INTO google_health_steps
-         (user_id, google_health_account_id, ts, steps, raw_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      insertIgnoreSql('google_health_steps', [
+        'user_id',
+        'google_health_account_id',
+        'ts',
+        'steps',
+        'raw_json',
+        'created_at'
+      ]),
       [context.user_id, context.google_health_account_id, toKstIsoLocal(ts), Math.round(steps), JSON.stringify(point), now]
     );
     saved += 1;
@@ -267,9 +312,14 @@ async function saveCaloriesRaw(context, payload) {
     if (!ts || !Number.isFinite(calories)) continue;
 
     await dbRun(
-      `INSERT OR IGNORE INTO google_health_calories
-         (user_id, google_health_account_id, ts, calories, raw_json, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      insertIgnoreSql('google_health_calories', [
+        'user_id',
+        'google_health_account_id',
+        'ts',
+        'calories',
+        'raw_json',
+        'created_at'
+      ]),
       [context.user_id, context.google_health_account_id, toKstIsoLocal(ts), calories, JSON.stringify(point), now]
     );
     saved += 1;
@@ -294,11 +344,7 @@ async function saveSleepRaw(context, points) {
     const sleepDate = sleepDateFromEndTime(endTime);
 
     await dbRun(
-      `INSERT OR REPLACE INTO google_health_sleep (
-         user_id, google_health_account_id, sleep_date, start_time, end_time,
-         minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes,
-         is_main_sleep, raw_json, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      upsertSleepSql(),
       [
         context.user_id,
         context.google_health_account_id,

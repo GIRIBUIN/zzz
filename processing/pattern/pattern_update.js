@@ -27,6 +27,11 @@ function dbRun(sql, params) {
 async function ensurePatternProfileSchema() {
   if (schemaReady) return;
 
+  if (db.engine === "mysql") {
+    schemaReady = true;
+    return;
+  }
+
   const columns = await dbAll(`PRAGMA table_info(pattern_profile)`, []);
   const names = new Set(columns.map((column) => column.name));
 
@@ -79,7 +84,6 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
   const predRows = await dbAll(
     `SELECT feature_snapshot_json FROM prediction_result
      WHERE user_id = ? AND target_sleep_date <= ?
-     GROUP BY target_sleep_date
      ORDER BY target_sleep_date DESC LIMIT ?`,
     [userId, sleepDate, RECENT_N_DAYS]
   );
@@ -100,13 +104,21 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
 
   // Fallback: prediction 기록 없으면 Google Health heart 21~23시 구간 N일 평균
   if (avgPresleepHr === null) {
+    const hrQuery = db.engine === "mysql"
+      ? `SELECT AVG(bpm) AS avg_hr
+         FROM google_health_heart
+         WHERE user_id = ?
+           AND TIME(ts) BETWEEN '21:00:00' AND '23:59:59'
+           AND DATE(ts) <= ?
+           AND DATE(ts) > DATE_SUB(?, INTERVAL ? DAY)`
+      : `SELECT AVG(bpm) AS avg_hr
+         FROM google_health_heart
+         WHERE user_id = ?
+           AND substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
+           AND substr(ts, 1, 10) <= ?
+           AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')`;
     const hrRow = await dbGet(
-      `SELECT AVG(bpm) AS avg_hr
-       FROM google_health_heart
-       WHERE user_id = ?
-         AND substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
-         AND substr(ts, 1, 10) <= ?
-         AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')`,
+      hrQuery,
       [userId, sleepDate, sleepDate, RECENT_N_DAYS]
     );
     avgPresleepHr = hrRow?.avg_hr ?? null;
@@ -208,7 +220,6 @@ async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, s
      FROM prediction_result pr
      JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
      WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
-     GROUP BY pr.target_sleep_date
      ORDER BY pr.target_sleep_date DESC LIMIT ?`,
     [userId, sleepDate, RECENT_N_DAYS]
   );
@@ -242,7 +253,6 @@ async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, s
      LEFT JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
      WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
        AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL)
-     GROUP BY pr.target_sleep_date
      ORDER BY pr.target_sleep_date DESC LIMIT ?`,
     [userId, sleepDate, RECENT_N_DAYS]
   );

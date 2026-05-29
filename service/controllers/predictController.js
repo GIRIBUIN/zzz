@@ -1,5 +1,5 @@
 const { executePresleepPrediction } = require("../services/predictionService");
-const { collectPresleep } = require("../../rpi/fitbit/collect_fitbit");
+const { collectPresleep } = require("../../rpi/google_health/collect_google_health");
 const { buildPresleepFeatures } = require("../../processing/feature/feature_builder");
 const { kstIsoLocal } = require("../../utils/time");
 const { requireUserIdFromRequest } = require("../utils/userContext");
@@ -21,13 +21,13 @@ async function postPresleepPrediction(req, res) {
 
     if (!skipCollect) {
       try {
-        console.log("[predictController] Fitbit 데이터 수집 시작");
+        console.log("[predictController] Google Health 데이터 수집 시작");
         await collectPresleep({ user_id: userId });
-        console.log("[predictController] Fitbit 데이터 수집 완료");
+        console.log("[predictController] Google Health 데이터 수집 완료");
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
-        collectionWarning = `Fitbit live sync skipped: ${error.message}`;
-        console.warn("[predictController] Fitbit 수집 실패, 저장된 데이터로 계속 진행:", error.message);
+        collectionWarning = `Google Health live sync skipped: ${error.message}`;
+        console.warn("[predictController] Google Health 수집 실패, 저장된 데이터로 계속 진행:", error.message);
       }
     } else {
       console.log("[predictController] 데이터 수집 단계 생략 (skip_collect=true)");
@@ -40,8 +40,8 @@ async function postPresleepPrediction(req, res) {
     if (!hasStoredPresleepData(snapshot)) {
       throw new Error(
         collectionWarning
-          ? `${collectionWarning}. 최근 1시간 Fitbit 데이터가 DB에도 없습니다. seed-demo를 다시 실행하거나 Fitbit 토큰을 갱신하세요.`
-          : "최근 1시간 Fitbit 데이터가 없습니다. seed-demo를 다시 실행하거나 Fitbit 동기화를 먼저 확인하세요."
+          ? `${collectionWarning}. 최근 1시간 wearable 데이터가 DB에도 없습니다. seed-demo를 다시 실행하거나 Google Health 연결을 확인하세요.`
+          : "최근 1시간 wearable 데이터가 없습니다. seed-demo를 다시 실행하거나 Google Health 동기화를 먼저 확인하세요."
       );
     }
  

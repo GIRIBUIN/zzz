@@ -1,6 +1,6 @@
 const db = require("../../storage/db/db");
 const { calcSleepScore } = require("../../processing/scoring/sleep_score");
-const { fetchSleep } = require("../../rpi/fitbit/fitbit_client");
+const { collectPostsleep } = require("../../rpi/google_health/collect_google_health");
 const { kstDateString } = require("../../utils/time");
 
 const inflightEnsures = new Map();
@@ -43,11 +43,20 @@ async function getSleepRow(userId, sleepDate) {
   return dbGet(
     `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
             deep_minutes, light_minutes, rem_minutes, is_main_sleep
-     FROM fitbit_sleep
-     WHERE user_id = ? AND sleep_date = ?
+     FROM (
+       SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
+              deep_minutes, light_minutes, rem_minutes, is_main_sleep, created_at
+       FROM google_health_sleep
+       WHERE user_id = ? AND sleep_date = ?
+       UNION ALL
+       SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
+              deep_minutes, light_minutes, rem_minutes, is_main_sleep, created_at
+       FROM fitbit_sleep
+       WHERE user_id = ? AND sleep_date = ?
+     )
      ORDER BY created_at DESC
      LIMIT 1`,
-    [userId, sleepDate]
+    [userId, sleepDate, userId, sleepDate]
   );
 }
 
@@ -60,70 +69,6 @@ async function getLatestPattern(userId) {
      LIMIT 1`,
     [userId]
   );
-}
-
-async function getDefaultFitbitAccountId(userId) {
-  const account = await dbGet(
-    `SELECT id FROM fitbit_accounts WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`,
-    [userId]
-  );
-  return account?.id ?? null;
-}
-
-async function saveFitbitSleepFromJson(userId, sleepDate, sleepJson) {
-  const mainSleep = (sleepJson?.sleep ?? []).find((sleep) => sleep.isMainSleep);
-  if (!mainSleep) {
-    return {
-      action: "skipped",
-      reason: "main sleep not found in Fitbit response"
-    };
-  }
-
-  const levels = mainSleep.levels?.summary ?? {};
-  const createdAt = new Date().toISOString();
-  const fitbitAccountId = await getDefaultFitbitAccountId(userId);
-
-  if (!fitbitAccountId) {
-    return {
-      action: "skipped",
-      reason: "fitbit account missing"
-    };
-  }
-
-  await dbRun(
-    `INSERT OR REPLACE INTO fitbit_sleep (
-      user_id,
-      fitbit_account_id,
-      sleep_date,
-      start_time,
-      end_time,
-      minutes_asleep,
-      minutes_awake,
-      deep_minutes,
-      light_minutes,
-      rem_minutes,
-      is_main_sleep,
-      raw_json,
-      created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-    [
-      userId,
-      fitbitAccountId,
-      sleepDate,
-      mainSleep.startTime,
-      mainSleep.endTime,
-      mainSleep.minutesAsleep,
-      mainSleep.minutesAwake,
-      levels.deep?.minutes ?? 0,
-      levels.light?.minutes ?? 0,
-      levels.rem?.minutes ?? 0,
-      JSON.stringify(mainSleep),
-      createdAt
-    ]
-  );
-
-  return { action: "collected", created_at: createdAt };
 }
 
 async function saveSleepScore(userId, sleepDate, scoreResult) {
@@ -165,21 +110,20 @@ async function tryCollectSleep(userId, sleepDate) {
   if (sleepDate !== todayStr()) {
     return {
       action: "skipped",
-      reason: "sleep_date is not today; live Fitbit sync skipped"
+      reason: "sleep_date is not today; live Google Health sync skipped"
     };
   }
 
   try {
-    console.log("[sleepScoreService] Fitbit sleep sync start");
-    const sleepJson = await fetchSleep({ user_id: userId });
-    const result = await saveFitbitSleepFromJson(userId, sleepDate, sleepJson);
-    console.log("[sleepScoreService] Fitbit sleep sync result:", result.action);
-    return result;
+    console.log("[sleepScoreService] Google Health sleep sync start");
+    await collectPostsleep({ user_id: userId });
+    console.log("[sleepScoreService] Google Health sleep sync complete");
+    return { action: "collected" };
   } catch (error) {
-    console.error("[sleepScoreService] Fitbit sleep sync failed:", error.message);
+    console.error("[sleepScoreService] Google Health sleep sync failed:", error.message);
     return {
       action: "failed",
-      reason: `Fitbit sleep sync failed: ${error.message}`
+      reason: `Google Health sleep sync failed: ${error.message}`
     };
   }
 }
@@ -207,7 +151,7 @@ async function ensureSleepScoreForDateInternal(userId, sleepDate) {
       action: "skipped",
       sleep_date: sleepDate,
       collection,
-      reason: "fitbit_sleep missing"
+      reason: "sleep source data missing"
     };
   }
 

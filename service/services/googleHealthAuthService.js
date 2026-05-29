@@ -329,6 +329,39 @@ async function getGoogleHealthStatus(userId) {
   };
 }
 
+async function getGoogleHealthAccount(context = {}) {
+  const normalizedUserId = await requireUserId(context.user_id ?? context);
+  const accountId = context.google_health_account_id == null
+    ? null
+    : Number(context.google_health_account_id);
+
+  if (accountId !== null && (!Number.isInteger(accountId) || accountId <= 0)) {
+    throw new Error("google_health_account_id must be a positive integer");
+  }
+
+  const params = [normalizedUserId];
+  let where = "user_id = ?";
+
+  if (accountId !== null) {
+    where += " AND id = ?";
+    params.push(accountId);
+  }
+
+  const account = await dbGet(
+    `SELECT id, user_id, access_token, refresh_token, token_expires_at, scopes, created_at, updated_at
+     FROM google_health_accounts
+     WHERE ${where}
+     LIMIT 1`,
+    params
+  );
+
+  if (!account) {
+    throw new Error("Google Health account not connected for user");
+  }
+
+  return account;
+}
+
 async function disconnectGoogleHealth(userId) {
   const normalizedUserId = await requireUserId(userId);
   const result = await dbRun(
@@ -346,6 +379,7 @@ module.exports = {
   buildGoogleHealthAuthorizeUrl,
   handleGoogleHealthCallback,
   getGoogleHealthStatus,
+  getGoogleHealthAccount,
   disconnectGoogleHealth,
   refreshGoogleHealthAccount
 };

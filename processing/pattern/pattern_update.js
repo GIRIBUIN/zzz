@@ -67,11 +67,14 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
   const sleepAvgRow = await dbGet(
     `SELECT AVG(minutes_asleep) AS avg_sleep_minutes
      FROM (
-       SELECT minutes_asleep FROM fitbit_sleep
+       SELECT sleep_date, minutes_asleep FROM fitbit_sleep
+       WHERE user_id = ? AND sleep_date <= ? AND is_main_sleep = 1
+       UNION ALL
+       SELECT sleep_date, minutes_asleep FROM google_health_sleep
        WHERE user_id = ? AND sleep_date <= ? AND is_main_sleep = 1
        ORDER BY sleep_date DESC LIMIT ?
      )`,
-    [userId, sleepDate, RECENT_N_DAYS]
+    [userId, sleepDate, userId, sleepDate, RECENT_N_DAYS]
   );
 
   // Sliding-window avg_presleep_hr: average avg_hr_1h from last N days of prediction snapshots
@@ -100,12 +103,21 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
   // Fallback: prediction 기록 없으면 fitbit_heart 21~23시 구간 N일 평균
   if (avgPresleepHr === null) {
     const hrRow = await dbGet(
-      `SELECT AVG(bpm) AS avg_hr FROM fitbit_heart
-       WHERE user_id = ?
-         AND substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
-         AND substr(ts, 1, 10) <= ?
-         AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')`,
-      [userId, sleepDate, sleepDate, RECENT_N_DAYS]
+      `SELECT AVG(bpm) AS avg_hr
+       FROM (
+         SELECT bpm FROM fitbit_heart
+         WHERE user_id = ?
+           AND substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
+           AND substr(ts, 1, 10) <= ?
+           AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')
+         UNION ALL
+         SELECT bpm FROM google_health_heart
+         WHERE user_id = ?
+           AND substr(ts, 12, 8) BETWEEN '21:00:00' AND '23:59:59'
+           AND substr(ts, 1, 10) <= ?
+           AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')
+       )`,
+      [userId, sleepDate, sleepDate, RECENT_N_DAYS, userId, sleepDate, sleepDate, RECENT_N_DAYS]
     );
     avgPresleepHr = hrRow?.avg_hr ?? null;
   }

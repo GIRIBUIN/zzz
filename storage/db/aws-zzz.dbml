@@ -54,6 +54,73 @@ Table google_health_accounts {
   }
 }
 
+Table google_health_heart {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  bpm integer [not null]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_google_health_heart_user_ts"]
+    google_health_account_id [name: "idx_google_health_heart_account_id"]
+  }
+}
+
+Table google_health_steps {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  steps integer [not null]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_google_health_steps_user_ts"]
+    google_health_account_id [name: "idx_google_health_steps_account_id"]
+  }
+}
+
+Table google_health_calories {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  ts text [not null, note: "ISO 8601 timestamp"]
+  calories real [not null]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, ts) [unique, name: "uq_google_health_calories_user_ts"]
+    google_health_account_id [name: "idx_google_health_calories_account_id"]
+  }
+}
+
+Table google_health_sleep {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  sleep_date text [not null, note: "YYYY-MM-DD"]
+  start_time text
+  end_time text
+  minutes_asleep integer
+  minutes_awake integer
+  deep_minutes integer
+  light_minutes integer
+  rem_minutes integer
+  is_main_sleep integer [note: "1=true, 0=false"]
+  raw_json text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, sleep_date) [unique, name: "uq_google_health_sleep_user_date"]
+    google_health_account_id [name: "idx_google_health_sleep_account_id"]
+  }
+}
+
 Table sensor_raw {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]

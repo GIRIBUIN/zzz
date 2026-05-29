@@ -76,7 +76,102 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_google_health_accounts_user
 ON google_health_accounts(user_id);
 
 -- =========================================================
--- 5. Sensor raw data
+-- 5. Google Health heart samples
+-- Google Health 심박 시계열 저장
+-- =========================================================
+CREATE TABLE IF NOT EXISTS google_health_heart (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    google_health_account_id INTEGER NOT NULL,
+    ts TEXT NOT NULL,
+    bpm INTEGER NOT NULL,
+    raw_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (google_health_account_id) REFERENCES google_health_accounts(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_google_health_heart_user_ts
+ON google_health_heart(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_google_health_heart_account_id
+ON google_health_heart(google_health_account_id);
+
+-- =========================================================
+-- 6. Google Health steps intervals
+-- Google Health 걸음 수 시계열 저장
+-- =========================================================
+CREATE TABLE IF NOT EXISTS google_health_steps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    google_health_account_id INTEGER NOT NULL,
+    ts TEXT NOT NULL,
+    steps INTEGER NOT NULL,
+    raw_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (google_health_account_id) REFERENCES google_health_accounts(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_google_health_steps_user_ts
+ON google_health_steps(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_google_health_steps_account_id
+ON google_health_steps(google_health_account_id);
+
+-- =========================================================
+-- 7. Google Health calories rollups
+-- Google Health total-calories rollup 저장
+-- =========================================================
+CREATE TABLE IF NOT EXISTS google_health_calories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    google_health_account_id INTEGER NOT NULL,
+    ts TEXT NOT NULL,
+    calories REAL NOT NULL,
+    raw_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (google_health_account_id) REFERENCES google_health_accounts(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_google_health_calories_user_ts
+ON google_health_calories(user_id, ts);
+
+CREATE INDEX IF NOT EXISTS idx_google_health_calories_account_id
+ON google_health_calories(google_health_account_id);
+
+-- =========================================================
+-- 8. Google Health sleep sessions
+-- Google Health 수면 세션 저장
+-- =========================================================
+CREATE TABLE IF NOT EXISTS google_health_sleep (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    google_health_account_id INTEGER NOT NULL,
+    sleep_date TEXT NOT NULL,
+    start_time TEXT,
+    end_time TEXT,
+    minutes_asleep INTEGER,
+    minutes_awake INTEGER,
+    deep_minutes INTEGER,
+    light_minutes INTEGER,
+    rem_minutes INTEGER,
+    is_main_sleep INTEGER,
+    raw_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (google_health_account_id) REFERENCES google_health_accounts(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_google_health_sleep_user_date
+ON google_health_sleep(user_id, sleep_date);
+
+CREATE INDEX IF NOT EXISTS idx_google_health_sleep_account_id
+ON google_health_sleep(google_health_account_id);
+
+-- =========================================================
+-- 9. Sensor raw data
 -- 환경 센서 원본 데이터 저장
 -- 수집 시점마다 1 row 생성
 -- =========================================================
@@ -101,7 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_sensor_raw_device_id
 ON sensor_raw(device_id);
 
 -- =========================================================
--- 6. Fitbit heart intraday
+-- 10. Fitbit heart intraday
 -- Fitbit 심박 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_heart (
@@ -122,7 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_heart_account_id
 ON fitbit_heart(fitbit_account_id);
 
 -- =========================================================
--- 7. Fitbit steps intraday
+-- 11. Fitbit steps intraday
 -- Fitbit 걸음 수 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_steps (
@@ -143,7 +238,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_steps_account_id
 ON fitbit_steps(fitbit_account_id);
 
 -- =========================================================
--- 8. Fitbit calories intraday
+-- 12. Fitbit calories intraday
 -- Fitbit 칼로리 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_calories (
@@ -164,7 +259,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_calories_account_id
 ON fitbit_calories(fitbit_account_id);
 
 -- =========================================================
--- 9. Fitbit main sleep result
+-- 13. Fitbit main sleep result
 -- 하루 대표 수면(main sleep) 1개 저장
 -- isMainSleep == true 를 우선 사용(밤 샌날, 낮잠만 잔 날 있을 수 있음)
 -- 예외 시 가장 긴 sleep log 사용 가능
@@ -195,7 +290,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_sleep_account_id
 ON fitbit_sleep(fitbit_account_id);
 
 -- =========================================================
--- 10. User feedback
+-- 14. User feedback
 -- 사용자 주관 만족도 입력
 -- 현재는 점수만 필수
 -- =========================================================
@@ -212,7 +307,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_user_feedback_user_date
 ON user_feedback(user_id, sleep_date);
 
 -- =========================================================
--- 11. Pre-sleep prediction result
+-- 15. Pre-sleep prediction result
 -- 취침 전 예측 결과 저장
 -- 하루 여러 번 실행될 수 있으므로 prediction_ts 기준으로 기록
 -- =========================================================
@@ -237,7 +332,7 @@ CREATE INDEX IF NOT EXISTS idx_prediction_result_user_target_date
 ON prediction_result(user_id, target_sleep_date);
 
 -- =========================================================
--- 12. Sleep score result
+-- 16. Sleep score result
 -- 기상 후 계산한 Sleep Score 저장
 -- 하루 대표 수면 기준
 -- =========================================================
@@ -257,7 +352,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_sleep_score_result_user_date
 ON sleep_score_result(user_id, sleep_date);
 
 -- =========================================================
--- 13. Post-sleep analysis result
+-- 17. Post-sleep analysis result
 -- 기상 후 원인 분석 결과 저장
 -- 원인은 JSON 형태로 확장 가능하게 저장
 -- =========================================================
@@ -280,7 +375,7 @@ CREATE INDEX IF NOT EXISTS idx_post_analysis_result_score_id
 ON post_analysis_result(sleep_score_result_id);
 
 -- =========================================================
--- 14. Pattern profile (A)
+-- 18. Pattern profile (A)
 -- 누적 패턴 데이터 저장
 -- 최신값만 덮어쓰지 않고, 갱신 시마다 이력을 남김
 -- =========================================================

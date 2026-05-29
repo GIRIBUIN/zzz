@@ -11,3 +11,66 @@
 .result-detail-card .long-text { max-width: 72ch; }
 @media (max-width: 1100px) { .result-grid { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .score-row, .result-meta-grid { grid-template-columns: 1fr; } }
+
+/* Commit 15: mobile result refinement */
+@media (max-width: 760px) {
+  .result-grid {
+    gap: 14px;
+  }
+
+  .result-grid .card {
+    min-height: 0;
+  }
+
+  .result-card-body {
+    gap: 10px;
+  }
+
+  .result-main-metric .metric-value {
+    font-size: 26px;
+  }
+
+  .result-meta-grid,
+  .metric-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .sleep-score-layout {
+    gap: 14px;
+  }
+
+  .sleep-score-layout .score-ring {
+    width: 118px;
+    height: 118px;
+  }
+
+  .score-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .score-row .metric-tile {
+    padding: 10px 8px;
+    text-align: center;
+  }
+
+  .score-row .metric-label {
+    font-size: 11px;
+    min-height: 28px;
+  }
+
+  .score-row .metric-value {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  .score-row {
+    grid-template-columns: 1fr;
+  }
+
+  .score-row .metric-label {
+    min-height: 0;
+  }
+}

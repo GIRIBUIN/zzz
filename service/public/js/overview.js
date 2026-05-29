@@ -218,12 +218,12 @@ function renderTrendChart(history) {
   trendAverageScore.textContent = formatScore(average);
 
   const labels = rows.map((row) => row.sleep_date || "");
-  const width = 720;
-  const height = 210;
-  const paddingLeft = 44;
-  const paddingRight = 44;
-  const paddingTop = 26;
-  const paddingBottom = 42;
+  const width = 960;
+  const height = 300;
+  const paddingLeft = 56;
+  const paddingRight = 56;
+  const paddingTop = 38;
+  const paddingBottom = 52;
   const usableWidth = width - paddingLeft - paddingRight;
   const usableHeight = height - paddingTop - paddingBottom;
   const denominator = Math.max(scores.length - 1, 1);
@@ -249,7 +249,7 @@ function renderTrendChart(history) {
 
   const xLabels = points.map((p) => {
     const label = labels[p.index] ? labels[p.index].slice(5) : "-";
-    return `<text x="${p.x}" y="${height - 8}" class="trend-x-label">${label}</text>`;
+    return `<text x="${p.x}" y="${height - 12}" class="trend-x-label">${label}</text>`;
   }).join("");
 
   trendChart.innerHTML = `${gridLines}<line x1="${paddingLeft}" y1="${height - paddingBottom}" x2="${width - paddingRight}" y2="${height - paddingBottom}" class="trend-axis-line"></line><polygon points="${areaPoints}" class="trend-area"></polygon><polyline points="${linePoints}" class="trend-line"></polyline>${pointNodes}${xLabels}`;

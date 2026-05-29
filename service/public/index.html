@@ -125,32 +125,43 @@
         </article>
       </section>
 
-      <section class="overview-grid-bottom overview-grid-bottom-two">
-        <article class="card">
+      <section class="overview-insight-grid">
+        <article class="card compact-insight-card">
           <h2>실내 환경</h2>
-          <p class="card-desc">최근 센서 기준 실내 환경 수치입니다.</p>
+          <p class="card-desc">최근 센서 기준 수치입니다.</p>
 
-          <div class="metric-grid env-grid">
-            <div class="metric-tile env-card">
-              <span class="metric-icon">🌡</span>
+          <div class="mini-tile-grid env-grid">
+            <div class="metric-tile env-card square-tile">
               <span class="metric-label">온도</span>
+              <span class="metric-icon">🌡</span>
               <span id="overviewTemperature" class="metric-value">아직 데이터 없음</span>
             </div>
-            <div class="metric-tile env-card">
-              <span class="metric-icon">💧</span>
+            <div class="metric-tile env-card square-tile">
               <span class="metric-label">습도</span>
+              <span class="metric-icon">💧</span>
               <span id="overviewHumidity" class="metric-value">아직 데이터 없음</span>
             </div>
-            <div class="metric-tile env-card">
+            <div class="metric-tile env-card square-tile">
+              <span class="metric-label">공기질</span>
               <span class="metric-icon">〰</span>
-              <span class="metric-label">공기질 지수</span>
               <span id="overviewGasIndex" class="metric-value">아직 데이터 없음</span>
             </div>
           </div>
         </article>
+
+        <article class="card compact-insight-card">
+          <h2>수면 점수 요약</h2>
+          <p class="card-desc">최근 7일 기준 핵심 점수입니다.</p>
+
+          <div class="mini-tile-grid trend-summary" id="trendSummaryTiles">
+            <div class="metric-tile square-tile"><span class="metric-label">최근 점수</span><span class="metric-icon">●</span><span id="trendLatestScore" class="metric-value accent">-</span></div>
+            <div class="metric-tile square-tile"><span class="metric-label">최고 점수</span><span class="metric-icon">▲</span><span id="trendBestScore" class="metric-value">-</span></div>
+            <div class="metric-tile square-tile"><span class="metric-label">7일 평균</span><span class="metric-icon">━</span><span id="trendAverageScore" class="metric-value">-</span></div>
+          </div>
+        </article>
       </section>
 
-      <section class="overview-grid-bottom">
+      <section class="overview-grid-bottom trend-section">
         <article class="card">
           <h2>수면 점수 추이</h2>
           <p class="card-desc">최근 7일 수면 점수 흐름입니다. 단위는 점이며 100점 만점입니다.</p>
@@ -158,14 +169,10 @@
           <div id="trendEmpty" class="empty-state">아직 표시할 수면 점수 데이터가 없습니다.</div>
 
           <div id="trendChartWrap" class="trend-card" style="display: none;">
-            <div class="trend-summary">
-              <div class="metric-tile"><span class="metric-label">최근 점수</span><span id="trendLatestScore" class="metric-value accent">-</span></div>
-              <div class="metric-tile"><span class="metric-label">최고 점수</span><span id="trendBestScore" class="metric-value">-</span></div>
-              <div class="metric-tile"><span class="metric-label">7일 평균</span><span id="trendAverageScore" class="metric-value">-</span></div>
-            </div>
-
             <div class="trend-chart-shell">
-              <svg id="trendChart" class="trend-chart" viewBox="0 0 720 210" role="img" aria-label="최근 7일 수면 점수 그래프"></svg>
+              <div class="trend-chart-inner">
+                <svg id="trendChart" class="trend-chart" viewBox="0 0 960 300" role="img" aria-label="최근 7일 수면 점수 그래프"></svg>
+              </div>
             </div>
 
             <div id="trendLabels" class="trend-labels"></div>

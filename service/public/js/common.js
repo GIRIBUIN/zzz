@@ -144,6 +144,7 @@ function setAuthNotice(message, type = "default") {
   notice.className = `auth-notice show ${type === "error" ? "auth-notice-error" : ""}`;
 }
 
+
 function authPanelHtml(user) {
   if (!user) {
     return `

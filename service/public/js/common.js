@@ -64,6 +64,13 @@ function feedbackUrl(user = requireCurrentUser()) {
   return withApiGatewayBase(withUserQuery("/feedback", user));
 }
 
+function predictPresleepUrl(user = requireCurrentUser(), skipCollect = false) {
+  const path = skipCollect
+    ? "/predict/presleep?skip_collect=true"
+    : "/predict/presleep";
+  return withApiGatewayBase(withUserQuery(path, user));
+}
+
 function withUserBody(body = {}, user = requireCurrentUser()) {
   return { ...body, user_id: user.user_id };
 }
@@ -357,6 +364,7 @@ window.ZZZAuth = {
   resultLatestUrl,
   sleepScoreHistoryUrl,
   feedbackUrl,
+  predictPresleepUrl,
   withUserBody,
   fetchGoogleHealthStatus,
   disconnectGoogleHealth,

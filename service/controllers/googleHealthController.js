@@ -5,11 +5,27 @@ const {
   disconnectGoogleHealth
 } = require("../services/googleHealthAuthService");
 
+function redirectWithGoogleHealthError(req, res, error) {
+  const redirectUrl = new URL("/", `${req.protocol}://${req.get("host")}`);
+  const userId = Number(req.query?.user_id);
+
+  if (Number.isInteger(userId) && userId > 0) {
+    redirectUrl.searchParams.set("user_id", userId);
+  }
+
+  redirectUrl.searchParams.set("google_health_error", error.message);
+  return res.redirect(redirectUrl.toString());
+}
+
 async function getConnect(req, res) {
   try {
     const authorizeUrl = await buildGoogleHealthAuthorizeUrl(req.query.user_id);
     return res.redirect(authorizeUrl);
   } catch (error) {
+    if (req.accepts("html")) {
+      return redirectWithGoogleHealthError(req, res, error);
+    }
+
     return res.status(400).json({
       status: "error",
       message: error.message
@@ -27,6 +43,10 @@ async function getCallback(req, res) {
 
     return res.redirect(redirectUrl.toString());
   } catch (error) {
+    if (req.accepts("html")) {
+      return redirectWithGoogleHealthError(req, res, error);
+    }
+
     return res.status(400).json({
       status: "error",
       message: error.message

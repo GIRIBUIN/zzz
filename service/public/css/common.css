@@ -149,17 +149,35 @@
     font-weight: 700;
   }
 
-  .auth-panel {
-    margin-top: auto;
+  .auth-shell {
+    width: min(520px, 100%);
     display: grid;
+    gap: 8px;
+    justify-items: end;
+  }
+
+  .auth-panel {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 10px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 14px;
+    padding: 10px 12px;
+    overflow: hidden;
+  }
+
+  .auth-account {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    margin-right: auto;
   }
 
   .auth-title {
+    display: none;
     color: var(--muted);
     font-size: 12px;
   }
@@ -169,6 +187,7 @@
     font-size: 14px;
     font-weight: 700;
     word-break: break-word;
+    white-space: nowrap;
   }
 
   .auth-user span,
@@ -178,23 +197,55 @@
     font-weight: 400;
   }
 
+  .auth-message {
+    max-width: 260px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .auth-form,
   .auth-actions {
-    display: grid;
+    display: flex;
+    align-items: center;
     gap: 8px;
+    min-width: 0;
   }
 
   .auth-input {
+    width: 120px;
+    min-width: 0;
     padding: 9px 10px;
     border-radius: 10px;
     font-size: 13px;
   }
 
   .auth-button {
-    width: 100%;
+    width: auto;
+    min-width: 74px;
     padding: 9px 10px;
     border-radius: 10px;
     font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .auth-notice {
+    max-width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: right;
+  }
+
+  .auth-notice-error {
+    color: var(--accent);
+    border-color: rgba(255, 78, 0, 0.28);
+    background: rgba(255, 78, 0, 0.08);
   }
   
   /* ===== Main Area ===== */
@@ -443,6 +494,42 @@
   
     .page-header {
       flex-direction: column;
+    }
+
+    .auth-shell,
+    .auth-panel {
+      width: 100%;
+      justify-items: stretch;
+    }
+
+    .auth-panel {
+      display: grid;
+      justify-content: stretch;
+      gap: 10px;
+    }
+
+    .auth-form,
+    .auth-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .auth-account {
+      margin-right: 0;
+    }
+
+    .auth-input,
+    .auth-button {
+      width: 100%;
+    }
+
+    .auth-message {
+      max-width: none;
+      white-space: normal;
+    }
+
+    .auth-notice {
+      text-align: left;
     }
   
     .grid-2,

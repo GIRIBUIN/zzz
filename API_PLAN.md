@@ -1,60 +1,85 @@
 # API_PLAN
 
-이 문서는 ZZZ 프로젝트의 **현재 구현된 API 구조**를 정리합니다.
+이 문서는 ZZZ 프로젝트의 현재 API 구조를 정리합니다.
+
+현재 wearable 데이터 수집 기준은 **Google Health API**입니다. Fitbit API endpoint와 `fitbit_*` 저장 경로는 제거되었습니다.
 
 ---
 
 ## 1. Current API Endpoints
 
-현재 서비스 서버(`service/server.js`)에서 연결하는 endpoint는 아래와 같습니다.
-
 ### Health Check
+
 - `GET /health`
 
+서버 실행 상태를 확인합니다.
+
+### Auth
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/users`
+
+현재 구현은 로컬 demo용 최소 auth입니다. 로그인 성공 후 UI는 `user_id`, `login_id`를 저장하고 이후 API 호출에 `user_id`를 전달합니다.
+
+### Google Health
+
+- `GET /google-health/connect?user_id=1`
+- `GET /google-health/callback`
+- `GET /google-health/status?user_id=1`
+- `POST /google-health/disconnect`
+
 용도:
-- 서버 실행 상태 확인
-- 최소 backend 동작 확인
+
+- Google OAuth 연결
+- access token / refresh token 저장
+- 연결 상태 확인
+- 연결 해제
+
+Token 원문은 status 응답에 포함하지 않습니다.
 
 ### Pre-Sleep Prediction
+
 - `POST /predict/presleep`
 - `POST /predict/presleep?skip_collect=true`
 
 용도:
-- 취침 전 예측 요청
-- Fitbit 수집 또는 저장된 최근 데이터 기반 feature 생성
-- 취침 전 위험도, 위험 요인, 행동 제안 반환
+
+- 취침 전 Google Health presleep live sync 시도
+- 최근 1시간 Google Health heart/steps/calories 및 sensor 데이터 기반 feature 생성
+- 취침 전 위험도, 위험 요인, 행동 제안 저장 및 반환
 
 참고:
-- `skip_collect=true`를 사용하면 Fitbit live sync를 생략하고 DB에 저장된 데이터만 사용합니다.
-- 시드 데이터 데모에서는 `skip_collect=true`로도 예측 흐름을 확인할 수 있습니다.
+
+- `skip_collect=true`는 live sync를 생략하고 DB에 저장된 데이터만 사용합니다.
+- live sync가 실패해도 DB에 최근 wearable 데이터가 있으면 예측은 계속 진행합니다.
+- 최근 1시간 wearable 데이터가 전혀 없으면 예측은 실패합니다.
 
 ### Latest Result
-- `GET /result/latest`
 
-용도:
-- 최신 feedback, prediction, sleep score, post analysis, environment 결과 종합 조회
+- `GET /result/latest?user_id=1`
+
+최신 feedback, prediction, sleep score, post analysis, environment 결과를 종합 조회합니다.
 
 ### Sleep Score History
-- `GET /result/sleep-score-history?limit=7`
 
-용도:
-- 최근 Sleep Score 추이 조회
-- Overview 화면의 점수 그래프 표시
+- `GET /result/sleep-score-history?user_id=1&limit=7`
 
-참고:
-- `limit`은 1~30 사이로 제한됩니다.
-- 값을 생략하면 기본값은 7입니다.
+최근 Sleep Score 추이를 조회합니다. `limit`은 1~30 사이로 제한되며 기본값은 7입니다.
 
 ### Feedback Input
+
 - `POST /feedback`
 
 용도:
+
 - 기상 후 수면 만족도 입력
 - 같은 수면 날짜에 재입력 시 수정
 - feedback 저장 후 Sleep Score, post analysis, pattern profile 후속 갱신
 
 참고:
-- 요청의 `sleep_date` 값은 UI 입력 기준의 **기상일**입니다.
+
+- 요청의 `sleep_date` 값은 UI 입력 기준의 기상일입니다.
 - 서버 내부에서는 해당 기상일의 전날을 실제 `sleep_date`로 매핑합니다.
 - 미래 기상일은 입력할 수 없습니다.
 
@@ -64,13 +89,60 @@
 
 ### `GET /health`
 
+```json
+{
+  "status": "ok",
+  "service": "zzz-service",
+  "time": "2026-05-29T10:59:03.000Z"
+}
+```
+
+### `POST /auth/login`
+
+Request:
+
+```json
+{
+  "login_id": "u001",
+  "password": "demo1234"
+}
+```
+
 Response:
 
 ```json
 {
   "status": "ok",
-  "service": "zzz-service",
-  "time": "2026-04-30T10:59:03.000Z"
+  "endpoint": "POST /auth/login",
+  "data": {
+    "user_id": 1,
+    "login_id": "u001"
+  }
+}
+```
+
+### `GET /google-health/status?user_id=1`
+
+Response:
+
+```json
+{
+  "status": "ok",
+  "endpoint": "GET /google-health/status",
+  "data": {
+    "connected": true,
+    "user_id": 1,
+    "google_health_account_id": 1,
+    "refresh_available": true,
+    "token_expires_at": "2026-05-29T10:59:42.026Z",
+    "token_expired": false,
+    "scopes": [
+      "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
+      "https://www.googleapis.com/auth/googlehealth.sleep.readonly"
+    ],
+    "created_at": "2026-05-29T09:59:43.026Z",
+    "updated_at": "2026-05-29T09:59:43.026Z"
+  }
 }
 ```
 
@@ -79,7 +151,9 @@ Response:
 Request:
 
 ```json
-{}
+{
+  "user_id": 1
+}
 ```
 
 Response example:
@@ -91,8 +165,8 @@ Response example:
   "warning": null,
   "data": {
     "id": 15,
-    "prediction_ts": "2026-04-30T19:54:00",
-    "target_sleep_date": "2026-04-30",
+    "prediction_ts": "2026-05-29T22:10:00",
+    "target_sleep_date": "2026-05-29",
     "risk_level": "HIGH",
     "risk_score": 75,
     "reasons": [
@@ -106,7 +180,7 @@ Response example:
 }
 ```
 
-### `GET /result/latest`
+### `GET /result/latest?user_id=1`
 
 Response example:
 
@@ -117,33 +191,33 @@ Response example:
   "data": {
     "message": "latest result fetched",
     "latest_feedback": {
-      "sleep_date": "2026-04-29",
+      "sleep_date": "2026-05-28",
       "satisfaction_score": 68
     },
     "latest_prediction": {
-      "target_sleep_date": "2026-04-30",
+      "target_sleep_date": "2026-05-29",
       "risk_level": "HIGH",
       "risk_score": 75,
       "reasons": []
     },
     "latest_sleep_score": {
-      "sleep_date": "2026-04-29",
-      "total_score": 82.3
+      "sleep_date": "2026-05-28",
+      "total_score": 82.2
     },
     "latest_analysis": {
-      "sleep_date": "2026-04-29",
+      "sleep_date": "2026-05-28",
       "causes": []
     },
     "latest_environment": {
-      "temperature": 26.1,
+      "temperature": 25.9,
       "humidity": 19,
-      "mq5_index": 0.553
+      "mq5_index": 0.552
     }
   }
 }
 ```
 
-### `GET /result/sleep-score-history?limit=7`
+### `GET /result/sleep-score-history?user_id=1&limit=7`
 
 Response example:
 
@@ -155,12 +229,12 @@ Response example:
     "message": "sleep score history fetched",
     "history": [
       {
-        "sleep_date": "2026-04-28",
-        "total_score": 75.9
+        "sleep_date": "2026-05-27",
+        "total_score": 75.7
       },
       {
-        "sleep_date": "2026-04-29",
-        "total_score": 82.3
+        "sleep_date": "2026-05-28",
+        "total_score": 82.2
       }
     ]
   }
@@ -173,7 +247,8 @@ Request:
 
 ```json
 {
-  "sleep_date": "2026-04-30",
+  "user_id": 1,
+  "sleep_date": "2026-05-29",
   "satisfaction_score": 82
 }
 ```
@@ -187,12 +262,18 @@ Response example:
   "data": {
     "message": "feedback saved",
     "action": "insert",
-    "wake_date": "2026-04-30",
-    "sleep_date": "2026-04-29",
+    "wake_date": "2026-05-29",
+    "sleep_date": "2026-05-28",
     "satisfaction_score": 82,
-    "sleep_score": {},
-    "pattern": {},
-    "post_analysis": {}
+    "sleep_score": {
+      "action": "exists"
+    },
+    "pattern": {
+      "action": "upsert"
+    },
+    "post_analysis": {
+      "action": "upsert"
+    }
   }
 }
 ```
@@ -210,23 +291,31 @@ Error response example:
 
 ## 3. Screen Mapping
 
-현재 endpoint와 연결되는 화면은 아래와 같습니다.
-
 - `/`
-  - index 허브 화면
-  - health 상태 확인
-  - summary / environment / sleep score trend 확인
+  - overview, health 상태, summary, environment, sleep score trend
 - `/presleep.html`
   - 취침 전 예측 실행 및 결과 확인
 - `/postsleep.html`
-  - feedback 입력 / 저장 / 수정
+  - feedback 입력, 저장, 수정
 - `/result.html`
-  - 최신 feedback / prediction / sleep score / analysis 결과 조회
+  - 최신 feedback, prediction, sleep score, analysis 결과 조회
 
 ---
 
-## 4. Notes
+## 4. Verification Notes
 
-- API 응답은 공통적으로 `status`, `endpoint`, `data`를 중심으로 구성합니다.
-- `POST /feedback`는 입력 저장/수정 이후 Sleep Score, post analysis, pattern update 흐름을 호출합니다.
-- pattern update 로직은 `processing/pattern/pattern_update.js`에서 최신 feedback과 계산 결과를 반영합니다.
+Fresh DB 기준 테이블 목록:
+
+```text
+devices, google_health_accounts, google_health_calories, google_health_heart,
+google_health_sleep, google_health_steps, pattern_profile,
+post_analysis_result, prediction_result, sensor_raw, sleep_score_result,
+user_feedback, users
+```
+
+현재 팀원 live 수집 테스트에서 확인해야 할 항목:
+
+- Google Health OAuth 연결 후 `google_health_accounts` row 생성
+- presleep 수집 후 `google_health_heart`, `google_health_steps`, `google_health_calories` row 생성
+- postsleep 수집 후 `google_health_sleep` row 생성
+- 수집 데이터가 없을 때는 seed-demo 또는 Google Health 재연결이 필요하다는 에러가 표시되는지 확인

@@ -19,19 +19,6 @@ const trendLatestScore = document.getElementById("trendLatestScore");
 const trendBestScore = document.getElementById("trendBestScore");
 const trendAverageScore = document.getElementById("trendAverageScore");
 
-function showStatus(message, type = "default") {
-  if (!healthStatus) return;
-  healthStatus.textContent = message;
-  healthStatus.classList.toggle("is-visible", Boolean(message));
-  healthStatus.classList.toggle("is-error", type === "error");
-}
-
-function hideStatus() {
-  if (!healthStatus) return;
-  healthStatus.textContent = "";
-  healthStatus.classList.remove("is-visible", "is-error");
-}
-
 function formatDateInputToday() {
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -55,12 +42,6 @@ function parseJsonObject(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-function formatScore(value, digits = 1) {
-  const score = Number(value);
-  if (!Number.isFinite(score)) return "-";
-  return Number.isInteger(score) ? String(score) : score.toFixed(digits);
-}
-
 function setScoreRing(value) {
   const score = Number(value);
   const safe = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
@@ -71,10 +52,9 @@ async function loadHealth() {
   try {
     const response = await fetch("/health");
     const data = await response.json();
-    if (data.status === "ok") hideStatus();
-    else showStatus("서버 상태를 확인하지 못했습니다.", "error");
+    healthStatus.textContent = data.status === "ok" ? "서버가 정상적으로 실행 중입니다." : "서버 상태를 확인하지 못했습니다.";
   } catch (error) {
-    showStatus(`서버 연결 오류: ${error.message}`, "error");
+    healthStatus.textContent = `서버 연결 오류: ${error.message}`;
   }
 }
 
@@ -111,132 +91,103 @@ async function loadLatestSummary() {
     const latestFb = data.latest_feedback;
     const latestPred = data.latest_prediction;
 
-    if (latestScore?.total_score !== undefined) {
-      latestSleepScore.textContent = formatScore(latestScore.total_score, 0);
+    if (latestScore) {
+      latestSleepScore.textContent = Number(latestScore.total_score).toFixed(0);
       setScoreRing(latestScore.total_score);
     } else {
       latestSleepScore.textContent = "-";
       setScoreRing(0);
     }
-
-    latestFeedback.textContent = latestFb?.satisfaction_score !== undefined
-      ? `${formatScore(latestFb.satisfaction_score, 0)}점`
-      : "아직 데이터 없음";
-
-    if (latestPred?.risk_level) {
-      const riskScore = latestPred.risk_score !== undefined ? ` (${formatScore(latestPred.risk_score, 0)}점)` : "";
-      latestPrediction.textContent = `${latestPred.risk_level}${riskScore}`;
-    } else {
-      latestPrediction.textContent = "아직 데이터 없음";
-    }
-
-    const snapshot = parseJsonObject(latestPred?.feature_snapshot_json);
-    renderRoomEnvironment(data.latest_environment, snapshot);
+    latestFeedback.textContent = latestFb ? `${latestFb.satisfaction_score} / 100` : "아직 데이터 없음";
+    latestPrediction.textContent = latestPred ? `${latestPred.risk_level} (${latestPred.risk_score})` : "아직 데이터 없음";
+    renderRoomEnvironment(data.latest_environment, parseJsonObject(latestPred?.feature_snapshot_json));
   } catch (error) {
-    showStatus(`요약을 불러오지 못했습니다: ${error.message}`, "error");
+    latestSleepScore.textContent = "-";
+    latestFeedback.textContent = "불러오기 실패";
+    latestPrediction.textContent = "불러오기 실패";
+    setScoreRing(0);
+    renderRoomEnvironment(null, null);
   }
-}
-
-function selectMood(score) {
-  const safe = String(score);
-  satisfactionScoreInput.value = safe;
-  scoreValue.textContent = safe;
-  document.querySelectorAll(".mood-option").forEach((button) => {
-    button.classList.toggle("is-selected", button.dataset.score === safe);
-  });
 }
 
 async function submitFeedback() {
   const user = window.ZZZAuth.requirePageUser({
-    statusElement: healthStatus,
+    statusElement: feedbackMessage,
     disabledSelectors: ["#quickSubmitBtn"],
     message: "로그인 후 만족도를 저장할 수 있습니다."
   });
   if (!user) return;
 
-  const payload = {
-    user_id: user.user_id,
-    sleep_date: sleepDateInput.value,
-    satisfaction_score: Number(satisfactionScoreInput.value)
-  };
-
-  if (!payload.sleep_date) {
-    showStatus("기상 날짜를 입력하세요.", "error");
-    return;
-  }
-
+  const sleep_date = sleepDateInput.value;
+  const satisfaction_score = Number(satisfactionScoreInput.value);
+  const originalButtonText = submitButton.textContent;
   submitButton.disabled = true;
+  submitButton.textContent = "저장 중...";
+
   try {
     const response = await fetch("/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ user_id: user.user_id, sleep_date, satisfaction_score })
     });
-    const result = await response.json();
-    if (result.status !== "ok") throw new Error(result.message || "저장 실패");
-
-    feedbackMessage.classList.remove("is-hidden");
-    feedbackMessage.textContent = `저장 완료 · ${payload.satisfaction_score}점`;
-    hideStatus();
+    const payload = await response.json();
+    const result = payload.data;
+    if (payload.status !== "ok") throw new Error(payload.message || "만족도 저장 실패");
+    feedbackMessage.textContent = `${result.message} | ${result.sleep_date} | ${result.satisfaction_score}/100 | ${formatKoreanDateTime(result.created_at)}`;
     await loadLatestSummary();
   } catch (error) {
-    showStatus(`만족도 저장 실패: ${error.message}`, "error");
+    feedbackMessage.textContent = `오류: ${error.message}`;
   } finally {
     submitButton.disabled = false;
+    submitButton.textContent = originalButtonText;
   }
 }
 
 function renderTrendChart(history) {
-  if (!Array.isArray(history) || history.length === 0) {
+  if (!history || history.length === 0) {
     trendEmpty.style.display = "block";
     trendChartWrap.style.display = "none";
-    return;
-  }
-
-  const rows = history.slice().reverse();
-  const scores = rows.map((row) => Number(row.total_score)).filter((value) => Number.isFinite(value));
-  if (scores.length === 0) {
-    trendEmpty.style.display = "block";
-    trendChartWrap.style.display = "none";
+    trendLatestScore.textContent = "-";
+    trendBestScore.textContent = "-";
+    trendAverageScore.textContent = "-";
+    trendChart.innerHTML = "";
+    trendLabels.innerHTML = "";
     return;
   }
 
   trendEmpty.style.display = "none";
   trendChartWrap.style.display = "grid";
 
-  const latest = scores[scores.length - 1];
-  const best = Math.max(...scores);
-  const average = scores.reduce((sum, value) => sum + value, 0) / scores.length;
-  trendLatestScore.textContent = formatScore(latest);
-  trendBestScore.textContent = formatScore(best);
-  trendAverageScore.textContent = formatScore(average);
-
-  const labels = rows.map((row) => row.sleep_date || "");
-  const width = 720;
-  const height = 210;
-  const paddingLeft = 36;
-  const paddingRight = 18;
+  const width = 640;
+  const height = 220;
+  const paddingLeft = 32;
+  const paddingRight = 24;
   const paddingTop = 24;
-  const paddingBottom = 32;
+  const paddingBottom = 30;
+  const labels = history.map((item) => item.sleep_date || "-");
+  const scores = history.map((item) => Number(item.total_score ?? 0));
+  const best = Math.max(...scores);
+  const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  const latest = scores[scores.length - 1];
   const usableWidth = width - paddingLeft - paddingRight;
   const usableHeight = height - paddingTop - paddingBottom;
-  const denominator = Math.max(scores.length - 1, 1);
+
+  trendLatestScore.textContent = `${latest.toFixed(1)} / 100`;
+  trendBestScore.textContent = `${best.toFixed(1)} / 100`;
+  trendAverageScore.textContent = `${average.toFixed(1)} / 100`;
 
   const points = scores.map((score, index) => {
-    const x = paddingLeft + (usableWidth * index) / denominator;
+    const x = scores.length === 1 ? width / 2 : paddingLeft + (usableWidth * index) / (scores.length - 1);
     const y = paddingTop + usableHeight - (score / 100) * usableHeight;
     return { x, y, score, index };
   });
-
   const linePoints = points.map((p) => `${p.x},${p.y}`).join(" ");
   const areaPoints = [`${points[0].x},${height - paddingBottom}`, ...points.map((p) => `${p.x},${p.y}`), `${points[points.length - 1].x},${height - paddingBottom}`].join(" ");
   const yTicks = [0, 50, 100];
-
   const gridLines = yTicks.map((tick) => {
     const y = paddingTop + usableHeight - (tick / 100) * usableHeight;
-    return `<line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" class="trend-grid-line"></line><text x="8" y="${y + 4}" class="trend-y-label">${tick}</text>`;
+    return `<line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" class="trend-grid-line"></line><text x="0" y="${y + 4}" class="trend-y-label">${tick}</text>`;
   }).join("");
-
   const bestIndex = scores.indexOf(best);
   const lastIndex = scores.length - 1;
   const pointNodes = points.map((p) => {
@@ -256,7 +207,6 @@ async function loadSleepScoreTrend() {
     trendEmpty.textContent = "로그인 후 수면 점수 그래프를 조회할 수 있습니다.";
     return;
   }
-
   try {
     const response = await fetch(window.ZZZAuth.withUserQuery("/result/sleep-score-history?limit=7", user));
     const payload = await response.json();
@@ -270,13 +220,10 @@ async function loadSleepScoreTrend() {
 
 window.addEventListener("DOMContentLoaded", () => {
   formatDateInputToday();
-  selectMood(60);
   loadHealth();
   loadLatestSummary();
   loadSleepScoreTrend();
+  scoreValue.textContent = satisfactionScoreInput.value;
 });
-
-document.querySelectorAll(".mood-option").forEach((button) => {
-  button.addEventListener("click", () => selectMood(button.dataset.score));
-});
+satisfactionScoreInput.addEventListener("input", () => { scoreValue.textContent = satisfactionScoreInput.value; });
 submitButton.addEventListener("click", submitFeedback);

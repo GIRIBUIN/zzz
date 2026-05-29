@@ -58,7 +58,7 @@ function requirePageUser(options = {}) {
   });
   if (!user && statusElement) {
     statusElement.textContent = message;
-    statusElement.classList.add("is-error");
+    statusElement.style.color = "#ff5a18";
   }
   return user;
 }

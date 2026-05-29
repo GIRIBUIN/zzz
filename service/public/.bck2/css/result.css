@@ -1,0 +1,13 @@
+/* service/public/css/result.css */
+
+.result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.result-summary-card { grid-column: 1 / -1; }
+.result-grid .card { min-height: 220px; }
+.score-field .value { font-size: 28px; line-height: 1.1; }
+.score-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+#feedbackFields, #predictionFields, #sleepScoreFields, #analysisFields { display: grid; gap: 12px; }
+#predictionReasons:empty::before, #analysisCauses:empty::before { content: "항목 없음"; color: var(--muted); }
+.summary-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.result-detail-card .long-text { max-width: 72ch; }
+@media (max-width: 1100px) { .result-grid, .summary-strip { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .score-row { grid-template-columns: 1fr; } }

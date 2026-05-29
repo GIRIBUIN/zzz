@@ -10,37 +10,10 @@ const resultFields = document.getElementById("resultFields");
 
 const predictBtn = document.getElementById("predictBtn");
 
-function showStatus(message, type = "default") {
-  if (!predictionStatus) return;
-  predictionStatus.textContent = message;
-  predictionStatus.classList.toggle("is-visible", Boolean(message));
-  predictionStatus.classList.toggle("is-error", type === "error");
-}
-
-function hideStatus() {
-  if (!predictionStatus) return;
-  predictionStatus.textContent = "";
-  predictionStatus.classList.remove("is-visible", "is-error");
-}
-
 function setText(id, value) {
   const element = document.getElementById(id);
   if (!element) return;
   element.textContent = value ?? "-";
-}
-
-function formatScore(value) {
-  const score = Number(value);
-  if (!Number.isFinite(score)) return "-";
-  return Number.isInteger(score) ? String(score) : score.toFixed(1);
-}
-
-function setProgress(id, value) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  const score = Number(value);
-  const safe = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
-  element.style.setProperty("--value", `${safe}%`);
 }
 
 function renderList(id, items, fallbackText = "항목 없음") {
@@ -70,7 +43,9 @@ function formatDateTime(value) {
   if (!value) return "-";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -105,23 +80,34 @@ function showResultFields() {
 
 function parseSnapshot(snapshotValue) {
   if (!snapshotValue) return null;
-  if (typeof snapshotValue === "object") return snapshotValue;
-  if (typeof snapshotValue === "string") {
-    try { return JSON.parse(snapshotValue); } catch { return null; }
+
+  if (typeof snapshotValue === "object") {
+    return snapshotValue;
   }
+
+  if (typeof snapshotValue === "string") {
+    try {
+      return JSON.parse(snapshotValue);
+    } catch (error) {
+      return null;
+    }
+  }
+
   return null;
 }
 
 function parseJsonArray(value) {
   if (Array.isArray(value)) return value;
+
   if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
-    } catch {
+    } catch (error) {
       return [];
     }
   }
+
   return [];
 }
 
@@ -145,14 +131,20 @@ function renderPredictionInputs(snapshot) {
 function renderPredictionResult(prediction) {
   if (!prediction) {
     showResultEmpty();
-    setText("predictionTopTargetSleepDate", "-");
     return;
   }
 
   showResultFields();
   setText("predictionRiskLevel", prediction.risk_level || "-");
-  setText("predictionRiskScore", prediction.risk_score !== undefined ? `${formatScore(prediction.risk_score)}점` : "-");
-  setProgress("predictionRiskBar", prediction.risk_score);
+  setText(
+    "predictionRiskScore",
+    prediction.risk_score !== undefined ? `${prediction.risk_score} / 100` : "-"
+  );
+  const riskBar = document.getElementById("predictionRiskBar");
+  if (riskBar) {
+    const score = Number(prediction.risk_score || 0);
+    riskBar.style.setProperty("--value", `${Math.max(0, Math.min(100, score))}%`);
+  }
 
   renderList(
     "predictionReasons",
@@ -161,9 +153,11 @@ function renderPredictionResult(prediction) {
   );
 
   setText("predictionActionText", prediction.action_text || "-");
-  setText("predictionTimestamp", formatDateTime(prediction.prediction_ts || prediction.created_at));
+  setText(
+    "predictionTimestamp",
+    formatDateTime(prediction.prediction_ts || prediction.created_at)
+  );
   setText("predictionTargetSleepDate", prediction.target_sleep_date || "-");
-  setText("predictionTopTargetSleepDate", prediction.target_sleep_date || "-");
 }
 
 async function loadLatestPrediction() {
@@ -174,18 +168,23 @@ async function loadLatestPrediction() {
   });
   if (!user) return;
 
+  predictionStatus.textContent = "최신 예측 데이터를 불러오는 중...";
+  predictionStatus.style.color = "#727477";
+
   try {
     const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
     const result = await response.json();
 
-    if (result.status !== "ok") throw new Error(result.message || "최신 예측 조회 실패");
+    if (result.status !== "ok") {
+      throw new Error(result.message || "Failed to load latest result");
+    }
 
     const latestPrediction = result.data?.latest_prediction || null;
 
     if (!latestPrediction) {
       showInputEmpty();
       showResultEmpty();
-      setText("predictionTopTargetSleepDate", "-");
+      predictionStatus.textContent = "아직 예측 데이터가 없습니다.";
       return;
     }
 
@@ -193,11 +192,13 @@ async function loadLatestPrediction() {
 
     renderPredictionInputs(snapshot);
     renderPredictionResult(latestPrediction);
-    hideStatus();
+
+    predictionStatus.textContent = "최신 예측 데이터를 표시했습니다.";
   } catch (error) {
     showInputEmpty("예측 입력 데이터를 불러오지 못했습니다.");
     showResultEmpty("예측 결과를 불러오지 못했습니다.");
-    showStatus(`예측 데이터를 불러오지 못했습니다. (${error.message})`, "error");
+    predictionStatus.textContent = `prediction 데이터를 불러오지 못했습니다. (${error.message})`;
+    predictionStatus.style.color = "#ff4e00";
   }
 }
 
@@ -209,11 +210,11 @@ async function requestPrediction() {
   });
   if (!user) return;
 
-  predictBtn.disabled = true;
+  predictionStatus.textContent = "예측을 계산하는 중...";
 
   try {
     const skipCollect = document.getElementById("skipCollect").checked;
-    const url = skipCollect
+    const url = skipCollect 
       ? "/predict/presleep?skip_collect=true"
       : "/predict/presleep";
 
@@ -224,16 +225,18 @@ async function requestPrediction() {
     });
 
     const predictResult = await predictResponse.json();
-    if (predictResult.status !== "ok") throw new Error(predictResult.message || "예측 실패");
+    if (predictResult.status !== "ok") {
+      throw new Error(predictResult.message || "Prediction failed");
+    }
 
     const snapshot = JSON.parse(predictResult.data?.feature_snapshot_json || "{}");
     renderPredictionInputs(snapshot);
     renderPredictionResult(predictResult.data || null);
-    hideStatus();
+
+    predictionStatus.textContent = "예측 계산 완료.";
   } catch (error) {
-    showStatus(`예측 실패: ${error.message}`, "error");
-  } finally {
-    predictBtn.disabled = false;
+    predictionStatus.textContent = `예측 실패: ${error.message}`;
+    predictionStatus.style.color = "#ff4e00";
   }
 }
 

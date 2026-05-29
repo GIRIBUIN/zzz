@@ -1,38 +1,16 @@
-/* service/public/css/result.css */
-
 .result-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .result-grid .card {
-  min-height: 220px;
-}
-
-.result-card-body {
-  display: grid;
-  gap: 12px;
-}
-
-.result-main-metric .metric-value {
-  font-size: 32px;
-}
-
-.result-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  min-height: 260px;
 }
 
 .score-field .value {
   font-size: 28px;
   line-height: 1.1;
-}
-
-.sleep-score-layout {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
 }
 
 .score-row {
@@ -45,6 +23,7 @@
 #predictionFields,
 #sleepScoreFields,
 #analysisFields {
+  display: grid;
   gap: 12px;
 }
 
@@ -54,23 +33,14 @@
   color: var(--muted);
 }
 
-.result-detail-card .long-text {
-  max-width: 76ch;
-}
-
 @media (max-width: 1100px) {
   .result-grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 760px) {
-  .sleep-score-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .score-row,
-  .result-meta-grid {
+@media (max-width: 700px) {
+  .score-row {
     grid-template-columns: 1fr;
   }
 }

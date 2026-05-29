@@ -1,9 +1,41 @@
 /* service/public/css/presleep.css */
 
+.prediction-command-card {
+  margin-bottom: 18px;
+}
+
+.command-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.command-date {
+  display: block;
+  margin-top: 3px;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.advanced-options {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.advanced-options summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--text-soft);
+  font-weight: 800;
+}
+
 .presleep-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 20px;
+  grid-template-columns: minmax(380px, 0.95fr) minmax(0, 1.05fr);
+  gap: 18px;
 }
 
 #inputFields,
@@ -12,30 +44,42 @@
   gap: 12px;
 }
 
+.input-data-layout {
+  display: grid;
+  gap: 12px;
+}
+
+.input-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.input-details {
+  color: var(--muted);
+}
+
+.input-details summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+  color: var(--text-soft);
+  font-weight: 850;
+}
+
 .input-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.full-span {
-  grid-column: 1 / -1;
-}
-
-.prediction-actions {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .checkbox-label {
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #666;
+  color: var(--muted);
   user-select: none;
 }
 
@@ -45,13 +89,29 @@
   height: 16px;
 }
 
-.result-hero .big-value {
-  font-size: 32px;
-  line-height: 1.1;
+.prediction-hero {
+  display: grid;
+  gap: 14px;
 }
 
-.result-meta .value {
-  font-size: 15px;
+.risk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.risk-level-box .metric-value {
+  color: var(--accent-strong);
+  font-size: 32px;
+}
+
+.result-meta .value { font-size: 15px; }
+
+.prediction-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 @media (max-width: 1100px) {
@@ -60,8 +120,16 @@
   }
 }
 
-@media (max-width: 700px) {
-  .input-grid {
+@media (max-width: 760px) {
+  .command-main {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .input-summary-grid,
+  .input-grid,
+  .risk-row,
+  .prediction-detail-grid {
     grid-template-columns: 1fr;
   }
 }

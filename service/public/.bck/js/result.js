@@ -1,5 +1,4 @@
 // service/public/result.js
-
 const pageStatus = document.getElementById("pageStatus");
 
 function setText(elementId, value) {
@@ -12,7 +11,9 @@ function formatDateTime(value) {
   if (!value) return "-";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -23,39 +24,19 @@ function formatDateTime(value) {
   return `${year}-${month}-${day} ${hour}:${minute}`;
 }
 
-function formatScore(value) {
-  const score = Number(value);
-  if (!Number.isFinite(score)) return "-";
-  return Number.isInteger(score) ? `${score}점` : `${score.toFixed(1)}점`;
-}
-
-function setProgress(id, value) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  const score = Number(value);
-  const safe = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
-  element.style.setProperty("--value", `${safe}%`);
-}
-
-function setRing(id, value) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  const score = Number(value);
-  const safe = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
-  element.style.setProperty("--value", safe);
-}
-
 function renderPageStatus(message, type = "default") {
-  if (!pageStatus) return;
   pageStatus.textContent = message;
-  pageStatus.classList.toggle("is-visible", Boolean(message));
-  pageStatus.classList.toggle("is-error", type === "error");
+
+  if (type === "error") {
+    pageStatus.style.color = "#ff4e00";
+  } else {
+    pageStatus.style.color = "#727477";
+  }
 }
 
 function clearPageStatus() {
-  if (!pageStatus) return;
-  pageStatus.textContent = "";
-  pageStatus.classList.remove("is-visible", "is-error");
+  pageStatus.textContent = "최신 결과를 불러왔습니다.";
+  pageStatus.style.color = "#727477";
 }
 
 function renderList(elementId, items, fallbackText = "항목 없음") {
@@ -88,7 +69,7 @@ function parseJsonArray(value) {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
-    } catch {
+    } catch (error) {
       return [];
     }
   }
@@ -120,8 +101,12 @@ function renderFeedbackCard(feedback) {
 
   showFields("feedback");
   setText("feedbackSleepDate", feedback.sleep_date || "-");
-  setText("feedbackSatisfactionScore", feedback.satisfaction_score !== undefined ? formatScore(feedback.satisfaction_score) : "-");
-  setProgress("feedbackSatisfactionBar", feedback.satisfaction_score);
+  setText(
+    "feedbackSatisfactionScore",
+    feedback.satisfaction_score !== undefined
+      ? `${feedback.satisfaction_score} / 100`
+      : "-"
+  );
   setText("feedbackCreatedAt", formatDateTime(feedback.created_at));
 }
 
@@ -133,9 +118,12 @@ function renderPredictionCard(prediction) {
 
   showFields("prediction");
   setText("predictionRiskLevel", prediction.risk_level || "-");
-  setText("predictionRiskScore", prediction.risk_score !== undefined ? formatScore(prediction.risk_score) : "-");
-  setProgress("predictionRiskBar", prediction.risk_score);
-
+  setText(
+    "predictionRiskScore",
+    prediction.risk_score !== undefined
+      ? `${prediction.risk_score} / 100`
+      : "-"
+  );
   renderList(
     "predictionReasons",
     prediction.reasons || parseJsonArray(prediction.reasons_json),
@@ -151,11 +139,22 @@ function renderSleepScoreCard(score) {
   }
 
   showFields("sleepScore");
-  setText("sleepScoreTotal", score.total_score !== undefined ? formatScore(score.total_score).replace("점", "") : "-");
-  setRing("sleepScoreRing", score.total_score);
-  setText("sleepScoreTimeAsleep", score.time_asleep_score !== undefined ? formatScore(score.time_asleep_score).replace("점", "") : "-");
-  setText("sleepScoreDeepRem", score.deep_rem_score !== undefined ? formatScore(score.deep_rem_score).replace("점", "") : "-");
-  setText("sleepScoreRestoration", score.restoration_score !== undefined ? formatScore(score.restoration_score).replace("점", "") : "-");
+  setText(
+    "sleepScoreTotal",
+    score.total_score !== undefined ? `${score.total_score} / 100` : "-"
+  );
+  setText(
+    "sleepScoreTimeAsleep",
+    score.time_asleep_score !== undefined ? `${score.time_asleep_score} / 50` : "-"
+  );
+  setText(
+    "sleepScoreDeepRem",
+    score.deep_rem_score !== undefined ? `${score.deep_rem_score} / 25` : "-"
+  );
+  setText(
+    "sleepScoreRestoration",
+    score.restoration_score !== undefined ? `${score.restoration_score} / 25` : "-"
+  );
 }
 
 function renderAnalysisCard(analysis) {
@@ -186,11 +185,15 @@ async function loadLatestResult() {
     return;
   }
 
+  renderPageStatus("불러오는 중...");
+
   try {
     const response = await fetch(window.ZZZAuth.withUserQuery("/result/latest", user));
     const result = await response.json();
 
-    if (result.status !== "ok") throw new Error(result.message || "최신 결과 조회 실패");
+    if (result.status !== "ok") {
+      throw new Error(result.message || "Failed to load latest result");
+    }
 
     const data = result.data || {};
 

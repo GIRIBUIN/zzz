@@ -28,7 +28,7 @@ function info(label, value) {
 }
 
 async function main() {
-  // 1시간 전 KST 기준 ISO (sensor / fitbit 쿼리용)
+  // 1시간 전 KST 기준 ISO (sensor / wearable 쿼리용)
   const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
 
   section("A. Feature Extraction — 실 DB 데이터 기준");
@@ -48,8 +48,8 @@ async function main() {
   info("pattern",            features.pattern);
 
   // 기본 검증 — null이 아니어야 할 피처들 (seed 정상 완료 시)
-  if (features.avg_hr_1h != null)        pass("fitbit_heart seeded — avg_hr_1h present");
-  else                                    fail("fitbit_heart missing — run npm run seed-demo");
+  if (features.avg_hr_1h != null)        pass("wearable heart seeded — avg_hr_1h present");
+  else                                    fail("wearable heart missing — run npm run seed-demo");
   if (features.avg_temp_1h != null)      pass("sensor_raw seeded — avg_temp_1h present");
   else                                    fail("sensor_raw missing — run npm run seed-demo");
 

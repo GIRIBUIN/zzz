@@ -24,6 +24,7 @@ async function postFeedback(req, res) {
     addIfPresent(logPayload, "sleep_score_collection", result.sleep_score?.collection?.action);
     addIfPresent(logPayload, "post_analysis_id", result.post_analysis?.id);
     addIfPresent(logPayload, "post_analysis_source", result.post_analysis?.source);
+    addIfPresent(logPayload, "post_analysis_reason", result.post_analysis?.reason);
 
     console.log("[feedbackController] feedback result:", logPayload);
 

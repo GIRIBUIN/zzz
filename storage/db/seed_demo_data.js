@@ -7,8 +7,8 @@
  *
  * 주의:
  * - Google Health 전환 전제
- * - seed 단계에서 fitbit_accounts / google_health_accounts를 미리 만들지 않음
- * - 따라서 첫 화면에서는 연결 버튼이 보여야 함
+ * - seed 단계에서 demo Google Health account와 원천 row를 생성함
+ * - 실제 OAuth 연결 시 google_health_accounts row는 사용자 기준으로 갱신됨
  */
 
 const path = require("path");
@@ -28,6 +28,12 @@ const DEMO_LOGIN_ID = "u001";
 const DEMO_PASSWORD = "demo1234";
 const DEMO_DEVICE_NAME = "rpi001";
 const DEMO_FITBIT_USER_ID = "fitbit-u001-demo";
+const DEMO_GOOGLE_HEALTH_SCOPES = [
+  "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
+  "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
+  "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
+  "https://www.googleapis.com/auth/googlehealth.profile.readonly",
+].join(" ");
 
 const SCENARIOS = [
   {
@@ -183,9 +189,30 @@ async function ensureDemoIdentity() {
     [user.id, DEMO_DEVICE_NAME]
   );
 
+  await dbRun(
+    `INSERT OR IGNORE INTO google_health_accounts
+       (user_id, access_token, refresh_token, token_expires_at, scopes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user.id,
+      "demo-google-health-access-token",
+      "demo-google-health-refresh-token",
+      "2099-12-31T23:59:59.000Z",
+      DEMO_GOOGLE_HEALTH_SCOPES,
+      now,
+      now,
+    ]
+  );
+
+  const googleHealthAccount = await dbGet(
+    `SELECT id FROM google_health_accounts WHERE user_id = ?`,
+    [user.id]
+  );
+
   return {
     userId: user.id,
     deviceId: device.id,
+    googleHealthAccountId: googleHealthAccount.id,
   };
 }
 
@@ -221,6 +248,42 @@ function recentFiveSecondTs(index, count = 720) {
 function predictionTs(dayOffset) {
   if (dayOffset === 0) return recentMinuteTs(59);
   return utcTs(dayOffset, 22);
+}
+
+function buildBpmArray(avg, count = 60) {
+  return Array.from({ length: count }, (_, i) =>
+    Math.min(150, Math.max(40, Math.round(avg + 6 * Math.sin(i * 0.7) + (i % 3 - 1) * 1.5)))
+  );
+}
+
+function buildStepsArray(total, count = 60) {
+  const arr = new Array(count).fill(0);
+  if (total <= 0) return arr;
+  const active = Math.min(25, count);
+  const base = Math.floor(total / active);
+  const rem = total - base * active;
+  for (let i = 0; i < active; i += 1) {
+    arr[count - active + i] = base + (i === 0 ? rem : 0);
+  }
+  return arr;
+}
+
+function buildCaloriesArray(total, count = 60) {
+  const arr = new Array(count).fill(0);
+  if (total <= 0) return arr;
+  const active = Math.min(30, count);
+  const base = Number((total / active).toFixed(2));
+  for (let i = 0; i < active; i += 1) {
+    arr[count - active + i] = base;
+  }
+  const diff = Number((total - arr.reduce((sum, value) => sum + value, 0)).toFixed(2));
+  arr[count - 1] = Number((arr[count - 1] + diff).toFixed(2));
+  return arr;
+}
+
+function presleepMinuteTs(dayOffset, index) {
+  if (dayOffset === 0) return recentMinuteTs(index);
+  return utcTs(dayOffset, 21, index);
 }
 
 function buildSensorRows(dayOffset, temp, humidity, mq5) {
@@ -263,6 +326,21 @@ async function clearDemoData(identity) {
   );
 
   await dbRun(
+    `DELETE FROM google_health_heart WHERE user_id = ? AND created_at = ?`,
+    [identity.userId, DEMO_TAG]
+  );
+
+  await dbRun(
+    `DELETE FROM google_health_steps WHERE user_id = ? AND created_at = ?`,
+    [identity.userId, DEMO_TAG]
+  );
+
+  await dbRun(
+    `DELETE FROM google_health_calories WHERE user_id = ? AND created_at = ?`,
+    [identity.userId, DEMO_TAG]
+  );
+
+  await dbRun(
     `DELETE FROM pattern_profile WHERE user_id = ?`,
     [identity.userId]
   );
@@ -294,6 +372,11 @@ async function clearDemoData(identity) {
       `DELETE FROM fitbit_sleep WHERE user_id = ? AND sleep_date = ?`,
       [identity.userId, date]
     );
+
+    await dbRun(
+      `DELETE FROM google_health_sleep WHERE user_id = ? AND sleep_date = ?`,
+      [identity.userId, date]
+    );
   }
 
   await dbRun(
@@ -303,6 +386,56 @@ async function clearDemoData(identity) {
 }
 
 async function seedIntraday(identity, sc) {
+  const bpms = buildBpmArray(sc.hr);
+  const steps = buildStepsArray(sc.steps);
+  const calories = buildCaloriesArray(sc.calories);
+
+  for (let i = 0; i < 60; i += 1) {
+    const ts = presleepMinuteTs(sc.dayOffset, i);
+
+    await dbRun(
+      `INSERT OR IGNORE INTO google_health_heart
+         (user_id, google_health_account_id, ts, bpm, raw_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        identity.userId,
+        identity.googleHealthAccountId,
+        ts,
+        bpms[i],
+        JSON.stringify({ source: "demo-seed", bpm: bpms[i] }),
+        DEMO_TAG,
+      ]
+    );
+
+    await dbRun(
+      `INSERT OR IGNORE INTO google_health_steps
+         (user_id, google_health_account_id, ts, steps, raw_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        identity.userId,
+        identity.googleHealthAccountId,
+        ts,
+        steps[i],
+        JSON.stringify({ source: "demo-seed", steps: steps[i] }),
+        DEMO_TAG,
+      ]
+    );
+
+    await dbRun(
+      `INSERT OR IGNORE INTO google_health_calories
+         (user_id, google_health_account_id, ts, calories, raw_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        identity.userId,
+        identity.googleHealthAccountId,
+        ts,
+        calories[i],
+        JSON.stringify({ source: "demo-seed", calories: calories[i] }),
+        DEMO_TAG,
+      ]
+    );
+  }
+
   for (const row of buildSensorRows(sc.dayOffset, sc.temp, sc.humidity, sc.mq5)) {
     await dbRun(
       `INSERT INTO sensor_raw
@@ -382,6 +515,36 @@ async function seedScenario(identity, sc) {
     light_minutes: sc.lightMin,
     rem_minutes: sc.remMin,
   };
+
+  await dbRun(
+    `INSERT OR REPLACE INTO google_health_sleep
+       (user_id, google_health_account_id, sleep_date, start_time, end_time,
+        minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes,
+        is_main_sleep, raw_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    [
+      identity.userId,
+      identity.googleHealthAccountId,
+      date,
+      sleepStartTs,
+      sleepEndTs,
+      sc.sleepMin,
+      sc.awakeMin,
+      sc.deepMin,
+      sc.lightMin,
+      sc.remMin,
+      JSON.stringify({
+        source: "demo-seed",
+        sleep_date: date,
+        minutes_asleep: sc.sleepMin,
+        minutes_awake: sc.awakeMin,
+        deep_minutes: sc.deepMin,
+        light_minutes: sc.lightMin,
+        rem_minutes: sc.remMin,
+      }),
+      sleepStartTs,
+    ]
+  );
 
   await updatePatternStage1(identity.userId, date);
 
@@ -483,9 +646,9 @@ async function main() {
 
     console.log("  기존 demo seed 데이터 클리어 완료");
     console.log(
-      `  demo 사용자: ${DEMO_LOGIN_ID} (user_id=${identity.userId}, device_id=${identity.deviceId})`
+      `  demo 사용자: ${DEMO_LOGIN_ID} (user_id=${identity.userId}, device_id=${identity.deviceId}, google_health_account_id=${identity.googleHealthAccountId})`
     );
-    console.log("  OAuth 계정 seed 없음: 첫 화면에서 연결 버튼이 보여야 합니다.");
+    console.log("  demo Google Health 원천 데이터 생성: 실제 OAuth 연결 시 계정 token은 갱신됩니다.");
 
     for (const sc of SCENARIOS) {
       await seedScenario(identity, sc);

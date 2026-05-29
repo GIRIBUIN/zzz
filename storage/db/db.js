@@ -41,17 +41,17 @@ function createMysqlDb() {
   return {
     engine: "mysql",
     get(sql, params = [], callback) {
-      pool.execute(sql, normalizeMysqlParams(params))
+      pool.query(sql, normalizeMysqlParams(params))
         .then(([rows]) => callback(null, rows?.[0] || null))
         .catch((err) => callback(err));
     },
     all(sql, params = [], callback) {
-      pool.execute(sql, normalizeMysqlParams(params))
+      pool.query(sql, normalizeMysqlParams(params))
         .then(([rows]) => callback(null, rows || []))
         .catch((err) => callback(err));
     },
     run(sql, params = [], callback) {
-      pool.execute(sql, normalizeMysqlParams(params))
+      pool.query(sql, normalizeMysqlParams(params))
         .then(([result]) => {
           const context = {
             lastID: result.insertId || 0,

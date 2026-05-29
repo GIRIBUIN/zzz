@@ -39,6 +39,21 @@ Table fitbit_accounts {
   }
 }
 
+Table google_health_accounts {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  access_token text [not null]
+  refresh_token text
+  token_expires_at text
+  scopes text
+  created_at text [default: `CURRENT_TIMESTAMP`]
+  updated_at text [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id [unique, name: "uq_google_health_accounts_user"]
+  }
+}
+
 Table sensor_raw {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]

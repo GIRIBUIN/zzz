@@ -57,7 +57,26 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_accounts_user_id
 ON fitbit_accounts(user_id);
 
 -- =========================================================
--- 4. Sensor raw data
+-- 4. Google Health accounts
+-- 사용자별 Google Health OAuth 연결 정보
+-- =========================================================
+CREATE TABLE IF NOT EXISTS google_health_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    token_expires_at TEXT,
+    scopes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_google_health_accounts_user
+ON google_health_accounts(user_id);
+
+-- =========================================================
+-- 5. Sensor raw data
 -- 환경 센서 원본 데이터 저장
 -- 수집 시점마다 1 row 생성
 -- =========================================================
@@ -82,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_sensor_raw_device_id
 ON sensor_raw(device_id);
 
 -- =========================================================
--- 5. Fitbit heart intraday
+-- 6. Fitbit heart intraday
 -- Fitbit 심박 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_heart (
@@ -103,7 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_heart_account_id
 ON fitbit_heart(fitbit_account_id);
 
 -- =========================================================
--- 6. Fitbit steps intraday
+-- 7. Fitbit steps intraday
 -- Fitbit 걸음 수 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_steps (
@@ -124,7 +143,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_steps_account_id
 ON fitbit_steps(fitbit_account_id);
 
 -- =========================================================
--- 7. Fitbit calories intraday
+-- 8. Fitbit calories intraday
 -- Fitbit 칼로리 시계열 저장
 -- =========================================================
 CREATE TABLE IF NOT EXISTS fitbit_calories (
@@ -145,7 +164,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_calories_account_id
 ON fitbit_calories(fitbit_account_id);
 
 -- =========================================================
--- 8. Fitbit main sleep result
+-- 9. Fitbit main sleep result
 -- 하루 대표 수면(main sleep) 1개 저장
 -- isMainSleep == true 를 우선 사용(밤 샌날, 낮잠만 잔 날 있을 수 있음)
 -- 예외 시 가장 긴 sleep log 사용 가능
@@ -176,7 +195,7 @@ CREATE INDEX IF NOT EXISTS idx_fitbit_sleep_account_id
 ON fitbit_sleep(fitbit_account_id);
 
 -- =========================================================
--- 9. User feedback
+-- 10. User feedback
 -- 사용자 주관 만족도 입력
 -- 현재는 점수만 필수
 -- =========================================================
@@ -193,7 +212,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_user_feedback_user_date
 ON user_feedback(user_id, sleep_date);
 
 -- =========================================================
--- 10. Pre-sleep prediction result
+-- 11. Pre-sleep prediction result
 -- 취침 전 예측 결과 저장
 -- 하루 여러 번 실행될 수 있으므로 prediction_ts 기준으로 기록
 -- =========================================================
@@ -218,7 +237,7 @@ CREATE INDEX IF NOT EXISTS idx_prediction_result_user_target_date
 ON prediction_result(user_id, target_sleep_date);
 
 -- =========================================================
--- 11. Sleep score result
+-- 12. Sleep score result
 -- 기상 후 계산한 Sleep Score 저장
 -- 하루 대표 수면 기준
 -- =========================================================
@@ -238,7 +257,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_sleep_score_result_user_date
 ON sleep_score_result(user_id, sleep_date);
 
 -- =========================================================
--- 12. Post-sleep analysis result
+-- 13. Post-sleep analysis result
 -- 기상 후 원인 분석 결과 저장
 -- 원인은 JSON 형태로 확장 가능하게 저장
 -- =========================================================
@@ -261,7 +280,7 @@ CREATE INDEX IF NOT EXISTS idx_post_analysis_result_score_id
 ON post_analysis_result(sleep_score_result_id);
 
 -- =========================================================
--- 13. Pattern profile (A)
+-- 14. Pattern profile (A)
 -- 누적 패턴 데이터 저장
 -- 최신값만 덮어쓰지 않고, 갱신 시마다 이력을 남김
 -- =========================================================

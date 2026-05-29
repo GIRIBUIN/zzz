@@ -154,6 +154,15 @@ async function buildGoogleHealthAuthorizeUrl(userId) {
   return url.toString();
 }
 
+function googleTokenErrorMessage(statusCode, parsed) {
+  const errorCode = String(parsed?.error || "unknown_error").slice(0, 120);
+  const errorDescription = String(parsed?.error_description || "").slice(0, 240);
+
+  return errorDescription
+    ? `Google Health token request failed [${statusCode}]: ${errorCode} - ${errorDescription}`
+    : `Google Health token request failed [${statusCode}]: ${errorCode}`;
+}
+
 function postGoogleToken(params) {
   const { clientId, clientSecret } = requireGoogleHealthConfig();
   const body = new URLSearchParams({
@@ -187,7 +196,7 @@ function postGoogleToken(params) {
           }
 
           if (res.statusCode < 200 || res.statusCode >= 300) {
-            return reject(new Error(`Google Health token request failed [${res.statusCode}]`));
+            return reject(new Error(googleTokenErrorMessage(res.statusCode, parsed)));
           }
 
           return resolve(parsed);

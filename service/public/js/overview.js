@@ -266,7 +266,7 @@ async function loadSleepScoreTrend() {
   }
 
   try {
-    const response = await fetch(window.ZZZAuth.withUserQuery("/result/sleep-score-history?limit=7", user));
+    const response = await fetch(window.ZZZAuth.sleepScoreHistoryUrl(user, 7));
     const payload = await response.json();
     renderTrendChart(payload.data?.history || []);
   } catch (error) {

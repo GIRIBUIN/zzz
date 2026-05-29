@@ -82,7 +82,7 @@ ON google_health_accounts(user_id);
 CREATE TABLE IF NOT EXISTS google_health_heart (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    google_health_account_id INTEGER NOT NULL,
+    google_health_account_id INTEGER,
     ts TEXT NOT NULL,
     bpm INTEGER NOT NULL,
     raw_json TEXT,
@@ -104,7 +104,7 @@ ON google_health_heart(google_health_account_id);
 CREATE TABLE IF NOT EXISTS google_health_steps (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    google_health_account_id INTEGER NOT NULL,
+    google_health_account_id INTEGER,
     ts TEXT NOT NULL,
     steps INTEGER NOT NULL,
     raw_json TEXT,
@@ -126,7 +126,7 @@ ON google_health_steps(google_health_account_id);
 CREATE TABLE IF NOT EXISTS google_health_calories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    google_health_account_id INTEGER NOT NULL,
+    google_health_account_id INTEGER,
     ts TEXT NOT NULL,
     calories REAL NOT NULL,
     raw_json TEXT,
@@ -148,7 +148,7 @@ ON google_health_calories(google_health_account_id);
 CREATE TABLE IF NOT EXISTS google_health_sleep (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    google_health_account_id INTEGER NOT NULL,
+    google_health_account_id INTEGER,
     sleep_date TEXT NOT NULL,
     start_time TEXT,
     end_time TEXT,

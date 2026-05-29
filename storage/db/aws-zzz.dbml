@@ -57,7 +57,7 @@ Table google_health_accounts {
 Table google_health_heart {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]
-  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
   ts text [not null, note: "ISO 8601 timestamp"]
   bpm integer [not null]
   raw_json text
@@ -72,7 +72,7 @@ Table google_health_heart {
 Table google_health_steps {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]
-  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
   ts text [not null, note: "ISO 8601 timestamp"]
   steps integer [not null]
   raw_json text
@@ -87,7 +87,7 @@ Table google_health_steps {
 Table google_health_calories {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]
-  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
   ts text [not null, note: "ISO 8601 timestamp"]
   calories real [not null]
   raw_json text
@@ -102,7 +102,7 @@ Table google_health_calories {
 Table google_health_sleep {
   id integer [pk, increment]
   user_id integer [not null, ref: > users.id]
-  google_health_account_id integer [not null, ref: > google_health_accounts.id]
+  google_health_account_id integer [ref: > google_health_accounts.id]
   sleep_date text [not null, note: "YYYY-MM-DD"]
   start_time text
   end_time text

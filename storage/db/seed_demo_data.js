@@ -7,8 +7,8 @@
  *
  * 주의:
  * - Google Health 전환 전제
- * - seed 단계에서 demo Google Health account와 원천 row를 생성함
- * - 실제 OAuth 연결 시 google_health_accounts row는 사용자 기준으로 갱신됨
+ * - seed 단계에서 Fitbit / Google Health OAuth account는 생성하지 않음
+ * - demo 원천 row는 OAuth account 없이 저장해 사용자가 직접 연결하는 흐름을 유지함
  */
 
 const path = require("path");
@@ -27,13 +27,6 @@ const DEMO_TAG = "demo-seed";
 const DEMO_LOGIN_ID = "u001";
 const DEMO_PASSWORD = "demo1234";
 const DEMO_DEVICE_NAME = "rpi001";
-const DEMO_FITBIT_USER_ID = "fitbit-u001-demo";
-const DEMO_GOOGLE_HEALTH_SCOPES = [
-  "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
-  "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
-  "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
-  "https://www.googleapis.com/auth/googlehealth.profile.readonly",
-].join(" ");
 
 const SCENARIOS = [
   {
@@ -189,30 +182,9 @@ async function ensureDemoIdentity() {
     [user.id, DEMO_DEVICE_NAME]
   );
 
-  await dbRun(
-    `INSERT OR IGNORE INTO google_health_accounts
-       (user_id, access_token, refresh_token, token_expires_at, scopes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      user.id,
-      "demo-google-health-access-token",
-      "demo-google-health-refresh-token",
-      "2099-12-31T23:59:59.000Z",
-      DEMO_GOOGLE_HEALTH_SCOPES,
-      now,
-      now,
-    ]
-  );
-
-  const googleHealthAccount = await dbGet(
-    `SELECT id FROM google_health_accounts WHERE user_id = ?`,
-    [user.id]
-  );
-
   return {
     userId: user.id,
     deviceId: device.id,
-    googleHealthAccountId: googleHealthAccount.id,
   };
 }
 
@@ -379,10 +351,6 @@ async function clearDemoData(identity) {
     );
   }
 
-  await dbRun(
-    `DELETE FROM fitbit_accounts WHERE user_id = ? AND fitbit_user_id = ?`,
-    [identity.userId, DEMO_FITBIT_USER_ID]
-  );
 }
 
 async function seedIntraday(identity, sc) {
@@ -399,7 +367,7 @@ async function seedIntraday(identity, sc) {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         identity.userId,
-        identity.googleHealthAccountId,
+        null,
         ts,
         bpms[i],
         JSON.stringify({ source: "demo-seed", bpm: bpms[i] }),
@@ -413,7 +381,7 @@ async function seedIntraday(identity, sc) {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         identity.userId,
-        identity.googleHealthAccountId,
+        null,
         ts,
         steps[i],
         JSON.stringify({ source: "demo-seed", steps: steps[i] }),
@@ -427,7 +395,7 @@ async function seedIntraday(identity, sc) {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         identity.userId,
-        identity.googleHealthAccountId,
+        null,
         ts,
         calories[i],
         JSON.stringify({ source: "demo-seed", calories: calories[i] }),
@@ -524,7 +492,7 @@ async function seedScenario(identity, sc) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     [
       identity.userId,
-      identity.googleHealthAccountId,
+      null,
       date,
       sleepStartTs,
       sleepEndTs,
@@ -646,9 +614,9 @@ async function main() {
 
     console.log("  기존 demo seed 데이터 클리어 완료");
     console.log(
-      `  demo 사용자: ${DEMO_LOGIN_ID} (user_id=${identity.userId}, device_id=${identity.deviceId}, google_health_account_id=${identity.googleHealthAccountId})`
+      `  demo 사용자: ${DEMO_LOGIN_ID} (user_id=${identity.userId}, device_id=${identity.deviceId})`
     );
-    console.log("  demo Google Health 원천 데이터 생성: 실제 OAuth 연결 시 계정 token은 갱신됩니다.");
+    console.log("  OAuth 계정 seed 없음: 사용자가 직접 Google Health를 연결해야 합니다.");
 
     for (const sc of SCENARIOS) {
       await seedScenario(identity, sc);

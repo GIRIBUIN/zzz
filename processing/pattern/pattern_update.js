@@ -76,7 +76,7 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
        FROM google_health_sleep
        WHERE user_id = ? AND sleep_date <= ? AND is_main_sleep = 1
        ORDER BY sleep_date DESC LIMIT ?
-     )`,
+     ) recent_sleep`,
     [userId, sleepDate, RECENT_N_DAYS]
   );
 
@@ -180,7 +180,7 @@ async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, s
        SELECT satisfaction_score FROM user_feedback
        WHERE user_id = ? AND sleep_date <= ?
        ORDER BY sleep_date DESC LIMIT ?
-     )`,
+     ) recent_feedback`,
     [userId, sleepDate, RECENT_N_DAYS]
   );
 

@@ -60,6 +60,10 @@ function sleepScoreHistoryUrl(user = requireCurrentUser(), limit = 7) {
   return withApiGatewayBase(withUserQuery(`/result/sleep-score-history?limit=${limit}`, user));
 }
 
+function feedbackUrl(user = requireCurrentUser()) {
+  return withApiGatewayBase(withUserQuery("/feedback", user));
+}
+
 function withUserBody(body = {}, user = requireCurrentUser()) {
   return { ...body, user_id: user.user_id };
 }
@@ -352,6 +356,7 @@ window.ZZZAuth = {
   withUserQuery,
   resultLatestUrl,
   sleepScoreHistoryUrl,
+  feedbackUrl,
   withUserBody,
   fetchGoogleHealthStatus,
   disconnectGoogleHealth,

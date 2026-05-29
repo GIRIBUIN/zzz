@@ -6,6 +6,8 @@ dotenv.config({ path: path.join(__dirname, "..", "..", ".env") });
 const DB_ENGINE = String(process.env.DB_ENGINE || "sqlite").trim().toLowerCase();
 
 function normalizeMysqlDateString(value) {
+  if (value === undefined) return null;
+  if (typeof value === "number" && !Number.isFinite(value)) return null;
   if (typeof value !== "string") return value;
 
   const match = value.match(

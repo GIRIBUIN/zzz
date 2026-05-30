@@ -57,6 +57,10 @@ function normalizePositiveInteger(value, fieldName) {
 }
 
 function requiredFiniteNumber(value, fieldName) {
+  if (value === null || value === undefined || value === "") {
+    throw new Error(`${fieldName} is required before publish`);
+  }
+
   const numberValue = Number(value);
 
   if (!Number.isFinite(numberValue)) {

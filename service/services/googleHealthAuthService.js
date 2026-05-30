@@ -383,6 +383,30 @@ async function getGoogleHealthAccount(context = {}) {
 
 async function disconnectGoogleHealth(userId) {
   const normalizedUserId = await requireUserId(userId);
+  const account = await dbGet(
+    `SELECT id FROM google_health_accounts WHERE user_id = ? LIMIT 1`,
+    [normalizedUserId]
+  );
+
+  if (account) {
+    await dbRun(
+      `UPDATE google_health_heart SET google_health_account_id = NULL WHERE user_id = ? AND google_health_account_id = ?`,
+      [normalizedUserId, account.id]
+    );
+    await dbRun(
+      `UPDATE google_health_steps SET google_health_account_id = NULL WHERE user_id = ? AND google_health_account_id = ?`,
+      [normalizedUserId, account.id]
+    );
+    await dbRun(
+      `UPDATE google_health_calories SET google_health_account_id = NULL WHERE user_id = ? AND google_health_account_id = ?`,
+      [normalizedUserId, account.id]
+    );
+    await dbRun(
+      `UPDATE google_health_sleep SET google_health_account_id = NULL WHERE user_id = ? AND google_health_account_id = ?`,
+      [normalizedUserId, account.id]
+    );
+  }
+
   const result = await dbRun(
     `DELETE FROM google_health_accounts WHERE user_id = ?`,
     [normalizedUserId]

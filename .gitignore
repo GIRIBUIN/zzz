@@ -15,6 +15,7 @@ yarn-error.log*
 
 # Environment variables
 .env
+certs/
 
 # SQLite database
 *.db
@@ -33,3 +34,4 @@ agent/
 
 # Validation snapshot (local timestamp-bound, not committed)
 processing/demo_data/snapshot.json
+storage/raw/sensor_raw/*.jsonl

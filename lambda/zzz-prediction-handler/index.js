@@ -216,8 +216,9 @@ async function savePredictionResult(snapshot, predictionResult) {
 
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
+  const body = typeof event.body === "string" ? (() => { try { return JSON.parse(event.body); } catch { return {}; } })() : (event.body || {});
 
-  const userId = Number(qs.user_id);
+  const userId = Number(qs.user_id ?? body.user_id);
   if (!Number.isInteger(userId) || userId <= 0) return errRes(400, "user_id must be a positive integer");
 
   try {

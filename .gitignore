@@ -16,6 +16,10 @@ yarn-error.log*
 # Environment variables
 .env
 
+# SSH keys
+*.pem
+*.key
+
 # SQLite database
 *.db
 *.sqlite3

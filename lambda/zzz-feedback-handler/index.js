@@ -414,7 +414,7 @@ exports.handler = async (event) => {
   if (!Number.isInteger(userId) || userId <= 0) return errRes(400, "user_id must be a positive integer");
 
   const { sleep_date: wakeDate, satisfaction_score } = body;
-  if (!wakeDate) return errRes(400, "wake_date is required");
+  if (!wakeDate) return errRes(400, "sleep_date is required");
   if (satisfaction_score === undefined || satisfaction_score === null || Number.isNaN(Number(satisfaction_score))) {
     return errRes(400, "satisfaction_score must be a number");
   }

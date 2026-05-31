@@ -1,4 +1,8 @@
 import mysql from "mysql2/promise";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+const s3 = new S3Client({ region: process.env.AWS_REGION || "ap-northeast-2" });
+const S3_BUCKET = process.env.S3_BUCKET || "zzz-raw-data-ciot";
 
 let pool;
 
@@ -38,6 +42,13 @@ function requiredPositiveInt(value, fieldName) {
   }
 
   return n;
+}
+
+function buildS3Key(userId, deviceId, ts) {
+  const [datePart] = (ts || "").split(" ");
+  const [y, m, d] = (datePart || new Date().toISOString().slice(0, 10)).split("-");
+  const fileName = `user-${userId}-device-${deviceId}-${ts.replace(/[: ]/g, "-")}.json`;
+  return `sensor/year=${y}/month=${m}/day=${d}/${fileName}`;
 }
 
 function toMysqlDatetime(value) {
@@ -101,11 +112,26 @@ export const handler = async (event) => {
       ts,
     });
 
+    // S3 raw JSON 백업 (실패해도 RDS 저장은 유지)
+    const s3Key = buildS3Key(userId, deviceId, ts);
+    try {
+      await s3.send(new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: s3Key,
+        Body: JSON.stringify({ user_id: userId, device_id: deviceId, ts, temperature, humidity, mq5_raw: mq5Raw, mq5_index: mq5Index, insert_id: result.insertId, received_at: new Date().toISOString() }, null, 2),
+        ContentType: "application/json",
+      }));
+      console.log("S3 backup saved:", s3Key);
+    } catch (s3Err) {
+      console.error("S3 backup failed (RDS OK):", s3Err.message);
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({
         ok: true,
         insertId: result.insertId,
+        s3_key: s3Key,
         received: event,
       }),
     };

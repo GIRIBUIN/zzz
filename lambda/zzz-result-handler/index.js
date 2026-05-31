@@ -70,26 +70,7 @@ async function handleLatest(userId) {
   });
 }
 
-async function handleSleepScoreHistory(userId, limitParam) {
-  const limit = Number.isFinite(Number(limitParam))
-    ? Math.min(Math.max(Math.trunc(Number(limitParam)), 1), 30)
-    : 7;
-
-  const [rows] = await pool.query(
-    `SELECT sleep_date, total_score FROM sleep_score_result WHERE user_id = ? ORDER BY sleep_date DESC LIMIT ?`,
-    [userId, limit]
-  );
-  const history = (rows || []).slice().reverse();
-
-  return ok({
-    status: "ok",
-    endpoint: "GET /result/sleep-score-history",
-    data: { message: "sleep score history fetched", history },
-  });
-}
-
 exports.handler = async (event) => {
-  const path = event.rawPath || event.path || "";
   const qs = event.queryStringParameters || {};
 
   let userId;
@@ -103,9 +84,6 @@ exports.handler = async (event) => {
     const [[user]] = await pool.query(`SELECT id FROM users WHERE id = ? LIMIT 1`, [userId]);
     if (!user) return err(400, "user not found");
 
-    if (path.includes("sleep-score-history")) {
-      return await handleSleepScoreHistory(userId, qs.limit);
-    }
     return await handleLatest(userId);
   } catch (e) {
     console.error("[zzz-result-handler] error:", e);

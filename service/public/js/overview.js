@@ -67,6 +67,12 @@ function setScoreRing(value) {
   overviewScoreRing?.style.setProperty("--value", safe);
 }
 
+function setMetricText(element, text, isPlaceholder = false) {
+  if (!element) return;
+  element.textContent = text;
+  element.classList.toggle("is-placeholder", isPlaceholder);
+}
+
 async function loadHealth() {
   try {
     const response = await fetch("/health");
@@ -83,9 +89,9 @@ function renderRoomEnvironment(environment, snapshot) {
   const temp = source.temperature ?? source.avg_temp_1h;
   const humidity = source.humidity ?? source.avg_humidity_1h;
   const gas = source.mq5_index ?? source.avg_mq5_index_1h;
-  roomTemp.textContent = temp !== undefined && temp !== null ? `${Number(temp).toFixed(1)}°C` : "아직 데이터 없음";
-  roomHumidity.textContent = humidity !== undefined && humidity !== null ? `${Number(humidity).toFixed(1)}%` : "아직 데이터 없음";
-  roomGas.textContent = gas !== undefined && gas !== null ? Number(gas).toFixed(2) : "아직 데이터 없음";
+  setMetricText(roomTemp, temp !== undefined && temp !== null ? `${Number(temp).toFixed(1)}°C` : "데이터 없음", temp === undefined || temp === null);
+  setMetricText(roomHumidity, humidity !== undefined && humidity !== null ? `${Number(humidity).toFixed(1)}%` : "데이터 없음", humidity === undefined || humidity === null);
+  setMetricText(roomGas, gas !== undefined && gas !== null ? Number(gas).toFixed(2) : "데이터 없음", gas === undefined || gas === null);
 }
 
 async function loadLatestSummary() {
@@ -96,8 +102,8 @@ async function loadLatestSummary() {
   });
   if (!user) {
     latestSleepScore.textContent = "-";
-    latestFeedback.textContent = "로그인 필요";
-    latestPrediction.textContent = "로그인 필요";
+    setMetricText(latestFeedback, "로그인 후 표시", true);
+    setMetricText(latestPrediction, "로그인 후 표시", true);
     setScoreRing(0);
     renderRoomEnvironment(null, null);
     return;
@@ -119,17 +125,20 @@ async function loadLatestSummary() {
       setScoreRing(0);
     }
 
-    latestFeedback.textContent = latestFb?.satisfaction_score !== undefined
-      ? `${formatScore(latestFb.satisfaction_score, 0)}점`
-      : "아직 데이터 없음";
+    setMetricText(
+      latestFeedback,
+      latestFb?.satisfaction_score !== undefined ? `${formatScore(latestFb.satisfaction_score, 0)}점` : "데이터 없음",
+      latestFb?.satisfaction_score === undefined
+    );
 
     if (latestPred?.risk_level) {
       const riskScore = latestPred.risk_score !== undefined ? `${formatScore(latestPred.risk_score, 0)}점` : "";
+      latestPrediction.classList.remove("is-placeholder");
       latestPrediction.innerHTML = riskScore
         ? `<span class="stacked-risk"><span>${latestPred.risk_level}</span><span class="risk-score-line">${riskScore}</span></span>`
         : latestPred.risk_level;
     } else {
-      latestPrediction.textContent = "아직 데이터 없음";
+      setMetricText(latestPrediction, "데이터 없음", true);
     }
 
     const snapshot = parseJsonObject(latestPred?.feature_snapshot_json);

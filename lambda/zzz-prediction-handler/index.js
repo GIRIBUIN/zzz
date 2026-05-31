@@ -58,22 +58,21 @@ function errRes(statusCode, message) {
   };
 }
 
-// ─── SLM (Lambda에서는 SLM_ENDPOINT 미설정 → null 반환) ──────────────────────
+// ─── Groq (EC2 프록시 경유) ───────────────────────────────────────────────────
 
 async function callSlm(prompt) {
-  const endpoint = process.env.SLM_ENDPOINT;
-  const model = process.env.SLM_MODEL;
-  if (!endpoint || !model) return null;
+  const proxyUrl = process.env.GROQ_PROXY_URL;
+  if (!proxyUrl || !prompt) return null;
 
   try {
-    const res = await fetch(`${endpoint}/api/generate`, {
+    const res = await fetch(`${proxyUrl}/groq-proxy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt, stream: false }),
+      body: JSON.stringify({ prompt }),
     });
     if (!res.ok) return null;
     const json = await res.json();
-    const text = (json?.response ?? "").trim();
+    const text = (json?.text ?? "").trim();
     return text.length > 0 ? text : null;
   } catch {
     return null;
@@ -246,8 +245,8 @@ exports.handler = async (event) => {
 
     const predictionResult = computePresleepRisk(snapshot, snapshot?.pattern ?? null);
 
-    // SLM 시도 (Lambda 환경에서는 null 반환 → rule fallback)
-    const slmText = await callSlm("");
+    const groqPrompt = `수면 위험도 분석 결과를 한국어로 한 문장으로 요약해주세요.\n위험 수준: ${predictionResult.risk_level}, 점수: ${predictionResult.risk_score}, 원인: ${predictionResult.reasons.join(", ") || "없음"}`;
+    const slmText = await callSlm(groqPrompt);
     predictionResult.action_text = slmText
       ? `[slm] ${slmText}`
       : `[rule] ${predictionResult.action_text}`;

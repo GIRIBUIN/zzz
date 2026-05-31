@@ -70,21 +70,22 @@ function errRes(statusCode, message) {
   };
 }
 
-// ─── Groq (EC2 프록시 경유) ───────────────────────────────────────────────────
+// ─── SLM (Lambda에서는 SLM_ENDPOINT 미설정 → null 반환) ──────────────────────
 
 async function callSlm(prompt) {
-  const proxyUrl = process.env.GROQ_PROXY_URL;
-  if (!proxyUrl || !prompt) return null;
+  const endpoint = process.env.SLM_ENDPOINT;
+  const model = process.env.SLM_MODEL;
+  if (!endpoint || !model) return null;
 
   try {
-    const res = await fetch(`${proxyUrl}/groq-proxy`, {
+    const res = await fetch(`${endpoint}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ model, prompt, stream: false }),
     });
     if (!res.ok) return null;
     const json = await res.json();
-    const text = (json?.text ?? "").trim();
+    const text = (json?.response ?? "").trim();
     return text.length > 0 ? text : null;
   } catch {
     return null;
@@ -272,15 +273,16 @@ async function ensureSleepScore(userId, sleepDate) {
 async function updatePattern(userId, sleepDate, satisfactionScore, sleepScoreTotal) {
   const RECENT_N = 7;
   const now = new Date().toISOString();
+  const nextSleepDate = nextDateString(sleepDate);
 
   // Stage 1
   const sleepAvgRow = await dbGet(
     `SELECT AVG(minutes_asleep) AS avg_sleep_minutes FROM (SELECT sleep_date, minutes_asleep FROM google_health_sleep WHERE user_id = ? AND sleep_date <= ? AND is_main_sleep = 1 ORDER BY sleep_date DESC LIMIT ?) t`,
-    [userId, sleepDate, RECENT_N]
+    [userId, nextSleepDate, RECENT_N]
   );
   const predRows = await dbAll(
     `SELECT feature_snapshot_json FROM prediction_result WHERE user_id = ? AND target_sleep_date <= ? ORDER BY target_sleep_date DESC LIMIT ?`,
-    [userId, sleepDate, RECENT_N]
+    [userId, nextSleepDate, RECENT_N]
   );
 
   let avgPresleepHr = null;
@@ -296,7 +298,7 @@ async function updatePattern(userId, sleepDate, satisfactionScore, sleepScoreTot
   if (avgPresleepHr === null) {
     const hrRow = await dbGet(
       `SELECT AVG(bpm) AS avg_hr FROM google_health_heart WHERE user_id = ? AND TIME(ts) BETWEEN '21:00:00' AND '23:59:59' AND DATE(ts) <= ? AND DATE(ts) > DATE_SUB(?, INTERVAL ? DAY)`,
-      [userId, sleepDate, sleepDate, RECENT_N]
+      [userId, nextSleepDate, nextSleepDate, RECENT_N]
     );
     avgPresleepHr = hrRow?.avg_hr ?? null;
   }
@@ -328,8 +330,14 @@ async function updatePattern(userId, sleepDate, satisfactionScore, sleepScoreTot
   const lastPattern2 = await dbGet(`SELECT avg_sleep_minutes, avg_presleep_hr FROM pattern_profile WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`, [userId]);
 
   const envRows = await dbAll(
-    `SELECT pr.feature_snapshot_json, uf.satisfaction_score FROM prediction_result pr JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date WHERE pr.user_id = ? AND pr.target_sleep_date <= ? ORDER BY pr.target_sleep_date DESC LIMIT ?`,
-    [userId, sleepDate, RECENT_N]
+    `SELECT pr.feature_snapshot_json, uf.satisfaction_score
+     FROM prediction_result pr
+     JOIN user_feedback uf
+       ON pr.user_id = uf.user_id
+      AND pr.target_sleep_date IN (uf.sleep_date, DATE_ADD(uf.sleep_date, INTERVAL 1 DAY))
+     WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
+     ORDER BY pr.target_sleep_date DESC LIMIT ?`,
+    [userId, nextSleepDate, RECENT_N]
   );
   const factorHits = { gas: 0, temp: 0, humidity: 0, hr: 0, activity: 0 };
   let lowSatTotal = 0;
@@ -351,8 +359,18 @@ async function updatePattern(userId, sleepDate, satisfactionScore, sleepScoreTot
   }
 
   const accRows = await dbAll(
-    `SELECT pr.risk_level, ssr.total_score AS sleep_score, uf.satisfaction_score FROM prediction_result pr LEFT JOIN sleep_score_result ssr ON pr.user_id = ssr.user_id AND pr.target_sleep_date = ssr.sleep_date LEFT JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date WHERE pr.user_id = ? AND pr.target_sleep_date <= ? AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL) ORDER BY pr.target_sleep_date DESC LIMIT ?`,
-    [userId, sleepDate, RECENT_N]
+    `SELECT pr.risk_level, ssr.total_score AS sleep_score, uf.satisfaction_score
+     FROM prediction_result pr
+     LEFT JOIN sleep_score_result ssr
+       ON pr.user_id = ssr.user_id
+      AND pr.target_sleep_date IN (ssr.sleep_date, DATE_ADD(ssr.sleep_date, INTERVAL 1 DAY))
+     LEFT JOIN user_feedback uf
+       ON pr.user_id = uf.user_id
+      AND pr.target_sleep_date IN (uf.sleep_date, DATE_ADD(uf.sleep_date, INTERVAL 1 DAY))
+     WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
+       AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL)
+     ORDER BY pr.target_sleep_date DESC LIMIT ?`,
+    [userId, nextSleepDate, RECENT_N]
   );
   let totalValid = 0, hits2 = 0;
   for (const row of accRows) {
@@ -380,7 +398,7 @@ async function generatePostAnalysis(userId, sleepDate, satisfactionScore) {
   const [sleepRow, scoreResult, predictionRow, patternProfile] = await Promise.all([
     dbGet(`SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date IN (?, ?) ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC LIMIT 1`, [userId, sleepDate, nextSleepDate, sleepDate]),
     dbGet(`SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score FROM sleep_score_result WHERE user_id = ? AND sleep_date = ? ORDER BY created_at DESC LIMIT 1`, [userId, sleepDate]),
-    dbGet(`SELECT feature_snapshot_json FROM prediction_result WHERE user_id = ? AND target_sleep_date = ? ORDER BY prediction_ts DESC LIMIT 1`, [userId, sleepDate]),
+    dbGet(`SELECT feature_snapshot_json FROM prediction_result WHERE user_id = ? AND target_sleep_date IN (?, ?) ORDER BY target_sleep_date = ? DESC, prediction_ts DESC LIMIT 1`, [userId, sleepDate, nextSleepDate, sleepDate]),
     dbGet(`SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend FROM pattern_profile WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`, [userId]),
   ]);
 

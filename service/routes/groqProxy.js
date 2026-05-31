@@ -3,7 +3,7 @@ const router = express.Router();
 
 router.post("/", async (req, res) => {
   const apiKey = process.env.GROQ_API_KEY;
-  const { prompt, model, max_tokens = 200, temperature = 0.5 } = req.body || {};
+  const { prompt, model, max_tokens = 160, temperature = 0.5 } = req.body || {};
 
   if (!apiKey) return res.status(503).json({ error: "GROQ_API_KEY not configured" });
   if (!prompt) return res.status(400).json({ error: "prompt is required" });

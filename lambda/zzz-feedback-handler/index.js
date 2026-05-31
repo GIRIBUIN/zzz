@@ -392,7 +392,19 @@ async function generatePostAnalysis(userId, sleepDate, satisfactionScore) {
   try { featureSnapshot = predictionRow?.feature_snapshot_json ? JSON.parse(predictionRow.feature_snapshot_json) : null; } catch { }
 
   const analysis = analyzePostSleep({ sleepRow, scoreResult, featureSnapshot, satisfactionScore, patternProfile });
-  const slmText = await callSlm(`${analysis.analysis_text}\n${analysis.score_gap_note || ""}`);
+  const f = featureSnapshot || {};
+  const groqPrompt = [
+    "아래 수면 데이터를 바탕으로 한국어로 두 문장 이내로 피드백을 작성해주세요. 서론 없이 핵심 내용만 바로 작성하세요.",
+    `수면 시간: ${sleepRow.minutes_asleep != null ? Math.floor(sleepRow.minutes_asleep / 60) + "시간 " + (sleepRow.minutes_asleep % 60) + "분" : "없음"}`,
+    `깊은수면+REM: ${((Number(sleepRow.deep_minutes) || 0) + (Number(sleepRow.rem_minutes) || 0))}분`,
+    `중간각성: ${sleepRow.minutes_awake ?? 0}분`,
+    `수면 점수: ${scoreResult.total_score}점 / 주관 만족도: ${satisfactionScore}점`,
+    `취침 전 심박수: ${f.avg_hr_1h != null ? Number(f.avg_hr_1h).toFixed(1) + " bpm" : "없음"}`,
+    `취침 전 실내온도: ${f.avg_temp_1h != null ? Number(f.avg_temp_1h).toFixed(1) + "°C" : "없음"}`,
+    `취침 전 공기질(MQ5): ${f.avg_mq5_index_1h != null ? Number(f.avg_mq5_index_1h).toFixed(2) : "없음"}`,
+    `주요 원인: ${analysis.causes_json ? JSON.parse(analysis.causes_json).map(c => c.label).join(", ") : "없음"}`,
+  ].join("\n");
+  const slmText = await callSlm(groqPrompt);
   const analysisText = slmText ? `[slm] ${slmText}` : `[rule] ${analysis.analysis_text}${analysis.score_gap_note ? " " + analysis.score_gap_note : ""}`;
   const createdAt = new Date().toISOString();
 

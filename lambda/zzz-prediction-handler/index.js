@@ -245,7 +245,16 @@ exports.handler = async (event) => {
 
     const predictionResult = computePresleepRisk(snapshot, snapshot?.pattern ?? null);
 
-    const groqPrompt = `수면 위험도 분석 결과를 한국어로 한 문장으로 요약해주세요.\n위험 수준: ${predictionResult.risk_level}, 점수: ${predictionResult.risk_score}, 원인: ${predictionResult.reasons.join(", ") || "없음"}`;
+    const groqPrompt = [
+      "아래 취침 전 센서 데이터를 바탕으로 오늘 밤 수면에 대해 한국어로 두 문장 이내로 조언해주세요. 서론 없이 핵심 내용만 바로 작성하세요.",
+      `위험 수준: ${predictionResult.risk_level} (${predictionResult.risk_score}점)`,
+      `심박수: ${snapshot.avg_hr_1h != null ? Number(snapshot.avg_hr_1h).toFixed(1) + " bpm" : "없음"}`,
+      `활동량(걸음): ${snapshot.steps_sum_1h ?? 0}`,
+      `실내온도: ${snapshot.avg_temp_1h != null ? Number(snapshot.avg_temp_1h).toFixed(1) + "°C" : "없음"}`,
+      `실내습도: ${snapshot.avg_humidity_1h != null ? Number(snapshot.avg_humidity_1h).toFixed(1) + "%" : "없음"}`,
+      `공기질(MQ5): ${snapshot.avg_mq5_index_1h != null ? Number(snapshot.avg_mq5_index_1h).toFixed(2) : "없음"}`,
+      `주요 원인: ${predictionResult.reasons.join(", ") || "없음"}`,
+    ].join("\n");
     const slmText = await callSlm(groqPrompt);
     predictionResult.action_text = slmText
       ? `[slm] ${slmText}`

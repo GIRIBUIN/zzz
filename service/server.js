@@ -10,7 +10,6 @@ const googleHealthRouter = require("./routes/googleHealth");
 const predictRouter = require("./routes/predict");
 const resultRouter = require("./routes/result");
 const feedbackRouter = require("./routes/feedback");
-const devicesRouter = require("./routes/devices");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,7 +25,6 @@ app.use("/google-health", googleHealthRouter);
 app.use("/predict", predictRouter);
 app.use("/result", resultRouter);
 app.use("/feedback", feedbackRouter);
-app.use("/devices", devicesRouter);
 
 app.get("/js/runtime-config.js", (req, res) => {
   const config = {

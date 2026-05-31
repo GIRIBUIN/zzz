@@ -132,24 +132,6 @@ async function disconnectGoogleHealth(user = requireCurrentUser()) {
   return payload.data;
 }
 
-async function fetchMyDevice(user = requireCurrentUser()) {
-  const response = await fetch(withUserQuery("/devices/my", user));
-  const payload = await response.json();
-  if (payload.status !== "ok") throw new Error(payload.message || "기기 상태 확인 실패");
-  return payload.data?.device || null;
-}
-
-async function registerDevice(deviceName, user = requireCurrentUser()) {
-  const response = await fetch("/devices/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(withUserBody({ device_name: deviceName }, user))
-  });
-  const payload = await response.json();
-  if (payload.status !== "ok") throw new Error(payload.message || "기기 등록 실패");
-  return payload.data;
-}
-
 function closePanel(panelId, buttonId) {
   const panel = document.getElementById(panelId);
   const button = document.getElementById(buttonId);
@@ -235,22 +217,6 @@ function authPanelHtml(user) {
         <button id="googleHealthConnectBtn" class="small-button" type="button">연결</button>
         <button id="googleHealthDisconnectBtn" class="small-button secondary" type="button">연결 해제</button>
       </div>
-    </div>
-    <div class="account-card">
-      <div class="health-row">
-        <div>
-          <div class="health-title">RPi 기기</div>
-          <div id="deviceStatus" class="health-meta">상태 확인 중...</div>
-        </div>
-        <span id="deviceBadge" class="health-badge">확인 중</span>
-      </div>
-      <div id="deviceRegisterForm" class="auth-form">
-        <input id="deviceNameInput" class="auth-input" type="text" placeholder="기기 이름" value="rpi001" maxlength="80" />
-        <div class="health-actions">
-          <button id="deviceRegisterBtn" class="small-button" type="button">기기 등록</button>
-        </div>
-      </div>
-      <div id="deviceInfo" class="health-meta"></div>
     </div>
     <div class="auth-actions">
       <button id="authLogoutBtn" class="small-button danger" type="button">Logout</button>
@@ -390,33 +356,6 @@ function wireHeader() {
   });
 }
 
-function renderDeviceInfo(device) {
-  const statusEl = document.getElementById("deviceStatus");
-  const badgeEl = document.getElementById("deviceBadge");
-  const formEl = document.getElementById("deviceRegisterForm");
-  const infoEl = document.getElementById("deviceInfo");
-  if (!statusEl || !badgeEl || !formEl || !infoEl) return;
-
-  if (!device) {
-    statusEl.textContent = "미등록";
-    badgeEl.textContent = "Not registered";
-    badgeEl.className = "health-badge disconnected";
-    formEl.style.display = "grid";
-    infoEl.textContent = "";
-    return;
-  }
-
-  statusEl.textContent = `${device.iot_thing_name} · device_id ${device.device_id}`;
-  badgeEl.textContent = "Registered";
-  badgeEl.className = "health-badge connected";
-  formEl.style.display = "none";
-  infoEl.innerHTML = [
-    `user_id: ${device.user_id}`,
-    `device_id: ${device.device_id}`,
-    `topic: ${device.topic}`
-  ].join("<br>");
-}
-
 window.ZZZAuth = {
   getUser: readCurrentUser,
   requireUser: requireCurrentUser,
@@ -429,9 +368,6 @@ window.ZZZAuth = {
   withUserBody,
   fetchGoogleHealthStatus,
   disconnectGoogleHealth,
-  fetchMyDevice,
-  registerDevice,
-  renderDeviceInfo,
   renderAuthPanel
 };
 

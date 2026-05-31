@@ -27,6 +27,14 @@ function previousDateString(dateString) {
   return date.toISOString().slice(0, 10);
 }
 
+function nextDateString(dateString) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) return dateString;
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return dateString;
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function kstDateDaysAgo(days) {
   return kstDateString(new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000));
 }
@@ -237,9 +245,10 @@ async function ensureSleepScore(userId, sleepDate) {
   );
   if (existing) return { action: "exists", sleep_date: sleepDate, score: existing };
 
+  const nextSleepDate = nextDateString(sleepDate);
   const sleepRow = await dbGet(
-    `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date = ? ORDER BY created_at DESC LIMIT 1`,
-    [userId, sleepDate]
+    `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date IN (?, ?) ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC LIMIT 1`,
+    [userId, sleepDate, nextSleepDate, sleepDate]
   );
   if (!sleepRow) return { action: "skipped", sleep_date: sleepDate, reason: "sleep source data missing" };
 
@@ -367,8 +376,9 @@ async function updatePattern(userId, sleepDate, satisfactionScore, sleepScoreTot
 }
 
 async function generatePostAnalysis(userId, sleepDate, satisfactionScore) {
+  const nextSleepDate = nextDateString(sleepDate);
   const [sleepRow, scoreResult, predictionRow, patternProfile] = await Promise.all([
-    dbGet(`SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date = ? ORDER BY created_at DESC LIMIT 1`, [userId, sleepDate]),
+    dbGet(`SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date IN (?, ?) ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC LIMIT 1`, [userId, sleepDate, nextSleepDate, sleepDate]),
     dbGet(`SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score FROM sleep_score_result WHERE user_id = ? AND sleep_date = ? ORDER BY created_at DESC LIMIT 1`, [userId, sleepDate]),
     dbGet(`SELECT feature_snapshot_json FROM prediction_result WHERE user_id = ? AND target_sleep_date = ? ORDER BY prediction_ts DESC LIMIT 1`, [userId, sleepDate]),
     dbGet(`SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend FROM pattern_profile WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`, [userId]),

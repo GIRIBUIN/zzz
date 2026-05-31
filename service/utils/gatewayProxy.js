@@ -1,4 +1,3 @@
-// API_GATEWAY_BASE_URL이 설정되어 있으면 Lambda로 프록시, 없으면 로컬 핸들러(EC2 폴백) 실행
 async function proxyOrFallback(req, res, gatewayPath, localHandler) {
   const baseUrl = (process.env.API_GATEWAY_BASE_URL || "").replace(/\/+$/, "");
 
@@ -26,7 +25,7 @@ async function proxyOrFallback(req, res, gatewayPath, localHandler) {
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (error) {
-    console.warn("[gatewayProxy] Lambda 호출 실패, EC2 폴백 실행:", error.message);
+    console.warn("[gatewayProxy] Lambda call failed, running EC2 fallback:", error.message);
     return localHandler(req, res);
   }
 }

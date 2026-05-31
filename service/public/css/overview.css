@@ -50,11 +50,29 @@
 
 .summary-tile .metric-value {
   font-size: 25px;
+  max-width: 100%;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.summary-tile .metric-value.is-placeholder,
+.square-tile .metric-value.is-placeholder {
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 850;
 }
 
 .summary-tile .metric-icon {
   font-size: 30px;
   opacity: 0.92;
+}
+
+.summary-tile #overviewLatestPrediction {
+  font-size: 22px;
+}
+
+.summary-tile #overviewLatestPrediction.is-placeholder {
+  font-size: 17px;
 }
 
 .summary-tile .stacked-risk {
@@ -175,6 +193,10 @@
 
 .env-card .metric-value {
   font-size: 19px;
+}
+
+.env-card .metric-value.is-placeholder {
+  font-size: 16px;
 }
 
 .trend-card {

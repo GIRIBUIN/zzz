@@ -128,7 +128,7 @@ async function submitFeedback() {
   submitBtn.disabled = true;
 
   try {
-    const response = await fetch(window.ZZZAuth.feedbackUrl(user), {
+    const response = await fetch(window.ZZZAuth.withUserQuery("/feedback", user), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)

@@ -3,6 +3,13 @@ const db = require("../../storage/db/db");
 const RECENT_N_DAYS = 7;
 let schemaReady = false;
 
+function nextDateString(dateString) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return dateString;
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function dbGet(sql, params) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
@@ -65,6 +72,7 @@ async function replacePatternRow(userId, sleepDate, stage, insertSql, params) {
 async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
   const userId = maybeSleepDate === undefined ? 1 : userIdOrSleepDate;
   const sleepDate = maybeSleepDate === undefined ? userIdOrSleepDate : maybeSleepDate;
+  const nextSleepDate = nextDateString(sleepDate);
   await ensurePatternProfileSchema();
   const now = new Date().toISOString();
 
@@ -77,7 +85,7 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
        WHERE user_id = ? AND sleep_date <= ? AND is_main_sleep = 1
        ORDER BY sleep_date DESC LIMIT ?
      ) recent_sleep`,
-    [userId, sleepDate, RECENT_N_DAYS]
+    [userId, nextSleepDate, RECENT_N_DAYS]
   );
 
   // Sliding-window avg_presleep_hr: average avg_hr_1h from last N days of prediction snapshots
@@ -85,7 +93,7 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
     `SELECT feature_snapshot_json FROM prediction_result
      WHERE user_id = ? AND target_sleep_date <= ?
      ORDER BY target_sleep_date DESC LIMIT ?`,
-    [userId, sleepDate, RECENT_N_DAYS]
+    [userId, nextSleepDate, RECENT_N_DAYS]
   );
 
   let avgPresleepHr = null;
@@ -119,7 +127,7 @@ async function updatePatternStage1(userIdOrSleepDate, maybeSleepDate) {
            AND substr(ts, 1, 10) > date(?, '-' || ? || ' days')`;
     const hrRow = await dbGet(
       hrQuery,
-      [userId, sleepDate, sleepDate, RECENT_N_DAYS]
+      [userId, nextSleepDate, nextSleepDate, RECENT_N_DAYS]
     );
     avgPresleepHr = hrRow?.avg_hr ?? null;
   }
@@ -170,6 +178,7 @@ async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, s
   const sleepDate = legacyCall ? userIdOrSleepDate : sleepDateOrSatisfaction;
   const satisfactionScore = legacyCall ? sleepDateOrSatisfaction : satisfactionOrScore;
   const sleepScoreTotal = legacyCall ? satisfactionOrScore : maybeSleepScoreTotal;
+  const nextSleepDate = nextDateString(sleepDate);
   await ensurePatternProfileSchema();
   const now = new Date().toISOString();
 
@@ -215,14 +224,22 @@ async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, s
 
   // env_sensitivity_json: P(factor | low satisfaction) over last N days
   // Uses prediction feature snapshots joined with user satisfaction scores
-  const envRows = await dbAll(
-    `SELECT pr.feature_snapshot_json, uf.satisfaction_score
-     FROM prediction_result pr
-     JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
-     WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
-     ORDER BY pr.target_sleep_date DESC LIMIT ?`,
-    [userId, sleepDate, RECENT_N_DAYS]
-  );
+  const envRowsSql = db.engine === "mysql"
+    ? `SELECT pr.feature_snapshot_json, uf.satisfaction_score
+       FROM prediction_result pr
+       JOIN user_feedback uf
+         ON pr.user_id = uf.user_id
+        AND pr.target_sleep_date IN (uf.sleep_date, DATE_ADD(uf.sleep_date, INTERVAL 1 DAY))
+       WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
+       ORDER BY pr.target_sleep_date DESC LIMIT ?`
+    : `SELECT pr.feature_snapshot_json, uf.satisfaction_score
+       FROM prediction_result pr
+       JOIN user_feedback uf
+         ON pr.user_id = uf.user_id
+        AND pr.target_sleep_date IN (uf.sleep_date, date(uf.sleep_date, '+1 day'))
+       WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
+       ORDER BY pr.target_sleep_date DESC LIMIT ?`;
+  const envRows = await dbAll(envRowsSql, [userId, nextSleepDate, RECENT_N_DAYS]);
 
   const factorHits = { gas: 0, temp: 0, humidity: 0, hr: 0, activity: 0 };
   let lowSatTotal = 0;
@@ -246,16 +263,30 @@ async function updatePatternStage2(userIdOrSleepDate, sleepDateOrSatisfaction, s
 
   // pred_accuracy_rate: fraction of days where predicted risk matched actual outcome
   // Hit = (MEDIUM/HIGH predicted AND outcome bad) OR (LOW predicted AND outcome good)
-  const accRows = await dbAll(
-    `SELECT pr.risk_level, ssr.total_score AS sleep_score, uf.satisfaction_score
-     FROM prediction_result pr
-     LEFT JOIN sleep_score_result ssr ON pr.user_id = ssr.user_id AND pr.target_sleep_date = ssr.sleep_date
-     LEFT JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date
-     WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
-       AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL)
-     ORDER BY pr.target_sleep_date DESC LIMIT ?`,
-    [userId, sleepDate, RECENT_N_DAYS]
-  );
+  const accRowsSql = db.engine === "mysql"
+    ? `SELECT pr.risk_level, ssr.total_score AS sleep_score, uf.satisfaction_score
+       FROM prediction_result pr
+       LEFT JOIN sleep_score_result ssr
+         ON pr.user_id = ssr.user_id
+        AND pr.target_sleep_date IN (ssr.sleep_date, DATE_ADD(ssr.sleep_date, INTERVAL 1 DAY))
+       LEFT JOIN user_feedback uf
+         ON pr.user_id = uf.user_id
+        AND pr.target_sleep_date IN (uf.sleep_date, DATE_ADD(uf.sleep_date, INTERVAL 1 DAY))
+       WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
+         AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL)
+       ORDER BY pr.target_sleep_date DESC LIMIT ?`
+    : `SELECT pr.risk_level, ssr.total_score AS sleep_score, uf.satisfaction_score
+       FROM prediction_result pr
+       LEFT JOIN sleep_score_result ssr
+         ON pr.user_id = ssr.user_id
+        AND pr.target_sleep_date IN (ssr.sleep_date, date(ssr.sleep_date, '+1 day'))
+       LEFT JOIN user_feedback uf
+         ON pr.user_id = uf.user_id
+        AND pr.target_sleep_date IN (uf.sleep_date, date(uf.sleep_date, '+1 day'))
+       WHERE pr.user_id = ? AND pr.target_sleep_date <= ?
+         AND (ssr.total_score IS NOT NULL OR uf.satisfaction_score IS NOT NULL)
+       ORDER BY pr.target_sleep_date DESC LIMIT ?`;
+  const accRows = await dbAll(accRowsSql, [userId, nextSleepDate, RECENT_N_DAYS]);
 
   let totalValid = 0;
   let hits = 0;

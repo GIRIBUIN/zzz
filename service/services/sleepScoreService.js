@@ -27,6 +27,13 @@ function todayStr() {
   return kstDateString();
 }
 
+function nextDateString(dateString) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return dateString;
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 async function getSleepScore(userId, sleepDate) {
   return dbGet(
     `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score,
@@ -40,14 +47,15 @@ async function getSleepScore(userId, sleepDate) {
 }
 
 async function getSleepRow(userId, sleepDate) {
+  const nextSleepDate = nextDateString(sleepDate);
   return dbGet(
     `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
             deep_minutes, light_minutes, rem_minutes, is_main_sleep
      FROM google_health_sleep
-     WHERE user_id = ? AND sleep_date = ?
-     ORDER BY created_at DESC
+     WHERE user_id = ? AND sleep_date IN (?, ?)
+     ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC
      LIMIT 1`,
-    [userId, sleepDate]
+    [userId, sleepDate, nextSleepDate, sleepDate]
   );
 }
 

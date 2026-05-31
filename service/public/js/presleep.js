@@ -219,8 +219,10 @@ async function requestPrediction() {
   predictBtn.disabled = true;
 
   try {
-    const skipCollect = Boolean(window.ZZZ_CONFIG?.apiGatewayBaseUrl) || document.getElementById("skipCollect").checked;
-    const url = window.ZZZAuth.predictPresleepUrl(user, skipCollect);
+    const skipCollect = document.getElementById("skipCollect").checked;
+    const url = skipCollect
+      ? window.ZZZAuth.predictPresleepUrl(user, true)
+      : window.ZZZAuth.withUserQuery("/predict/presleep", user);
 
     const predictResponse = await fetch(url, {
       method: "POST",

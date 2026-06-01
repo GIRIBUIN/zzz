@@ -106,16 +106,16 @@ async function saveSleepScore(userId, sleepDate, scoreResult) {
 }
 
 async function tryCollectSleep(userId, sleepDate) {
-  if (sleepDate !== todayStr()) {
+  if (sleepDate > todayStr()) {
     return {
       action: "skipped",
-      reason: "sleep_date is not today; live Google Health sync skipped"
+      reason: "future sleep_date; live Google Health sync skipped"
     };
   }
 
   try {
     console.log("[sleepScoreService] Google Health sleep sync start");
-    await collectPostsleep({ user_id: userId });
+    await collectPostsleep({ user_id: userId, sleep_date: sleepDate });
     console.log("[sleepScoreService] Google Health sleep sync complete");
     return { action: "collected" };
   } catch (error) {

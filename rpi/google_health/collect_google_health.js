@@ -9,7 +9,7 @@
  */
 
 const db = require('../../storage/db/db');
-const { kstDateString } = require('../../utils/time');
+const { kstDateString, previousDateString } = require('../../utils/time');
 const { getGoogleHealthAccount } = require('../../service/services/googleHealthAuthService');
 const {
   fetchHeartRateDataPoints,
@@ -131,6 +131,35 @@ function todayRangeUtc() {
     startIso: `${date}T00:00:00+09:00`,
     endIso: `${date}T23:59:59+09:00`
   };
+}
+
+function nextDateString(dateString) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function postsleepRange(options = {}) {
+  const sleepDate = normalizeDateString(options.sleep_date || previousDateString(options.wake_date));
+  if (!sleepDate) {
+    return todayRangeUtc();
+  }
+
+  const nextDate = nextDateString(sleepDate);
+  if (!nextDate) {
+    return todayRangeUtc();
+  }
+
+  return {
+    startIso: `${sleepDate}T00:00:00+09:00`,
+    endIso: `${nextDate}T23:59:59+09:00`
+  };
+}
+
+function normalizeDateString(value) {
+  const text = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
 }
 
 function pointStartTime(point, dataKey) {
@@ -387,7 +416,7 @@ async function collectPresleep(options = {}) {
 async function collectPostsleep(options = {}) {
   console.log('[collect_google_health] 기상 후 수집 시작');
   const context = await resolveGoogleHealthContext(options);
-  const { startIso, endIso } = todayRangeUtc();
+  const { startIso, endIso } = postsleepRange(options);
 
   const [heartPoints, stepPoints, caloriesPayload, sleepPoints] = await Promise.all([
     fetchHeartRateDataPoints(context.googleHealthAccount, startIso, endIso),
@@ -417,6 +446,8 @@ module.exports = {
 if (require.main === module) {
   const userId = argValue('--user-id') || argValue('--user_id') || 1;
   const googleHealthAccountId = argValue('--google-health-account-id') || argValue('--google_health_account_id');
+  const sleepDate = argValue('--sleep-date') || argValue('--sleep_date');
+  const wakeDate = argValue('--wake-date') || argValue('--wake_date');
 
   if (!['presleep', 'postsleep'].includes(mode)) {
     console.error('--mode는 presleep 또는 postsleep 이어야 합니다.');
@@ -428,7 +459,12 @@ if (require.main === module) {
       if (mode === 'presleep') {
         await collectPresleep({ user_id: userId, google_health_account_id: googleHealthAccountId });
       } else {
-        await collectPostsleep({ user_id: userId, google_health_account_id: googleHealthAccountId });
+        await collectPostsleep({
+          user_id: userId,
+          google_health_account_id: googleHealthAccountId,
+          sleep_date: sleepDate,
+          wake_date: wakeDate
+        });
       }
     } catch (error) {
       console.error('[collect_google_health] 오류:', error.message);

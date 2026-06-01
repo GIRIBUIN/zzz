@@ -42,7 +42,7 @@ async function getLatestResult(userId) {
       `SELECT id, user_id, sleep_date, satisfaction_score, created_at
        FROM user_feedback
        WHERE user_id = ?
-       ORDER BY id DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT 1`,
       [userId]
     ),

@@ -62,23 +62,10 @@ function toDate(value) {
   return date;
 }
 
-function toKstIso(date, endOfDay = false) {
-  const formatted = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(date).reduce((acc, part) => {
-    if (part.type !== 'literal') acc[part.type] = part.value;
-    return acc;
-  }, {});
-
-  const time = endOfDay ? '23:59:59' : `${formatted.hour}:${formatted.minute}:${formatted.second}`;
-  return `${formatted.year}-${formatted.month}-${formatted.day}T${time}+09:00`;
+function toKstIso(date) {
+  return new Date(date.getTime() + 9 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19) + '+09:00';
 }
 
 function defaultRange() {
@@ -108,7 +95,7 @@ function splitRange(startIso, endIso, maxDays) {
     const next = new Date(Math.min(cursor.getTime() + maxMs - 1000, end.getTime()));
     ranges.push({
       startIso: toKstIso(cursor),
-      endIso: toKstIso(next, next.getTime() === end.getTime() && isDateOnly(argValue('--end')))
+      endIso: toKstIso(next)
     });
     cursor = new Date(next.getTime() + 1000);
   }

@@ -7,6 +7,7 @@
  *   node scripts/check_google_health.js --start 2026-06-01 --end 2026-06-02
  *   node scripts/check_google_health.js --user-id 1 --start 2026-06-01T00:00:00+09:00 --end 2026-06-02T23:59:59+09:00
  *   node scripts/check_google_health.js --user-id 1 --recent-minutes 60
+ *   node scripts/check_google_health.js --user-id 1 --start 2026-06-03 --end 2026-06-03 --raw-probe
  *
  * This does not save collected data. It only prints API response counts and one sample per data type.
  */
@@ -15,7 +16,8 @@ const {
   fetchHeartRateDataPoints,
   fetchStepsDataPoints,
   fetchSleepDataPoints,
-  fetchTotalCaloriesRollup
+  fetchTotalCaloriesRollup,
+  googleHealthApi
 } = require('../rpi/google_health/google_health_client');
 const {
   getGoogleHealthStatus
@@ -91,6 +93,31 @@ function recentRange(minutes) {
 
 function rollupPoints(payload) {
   return payload?.rollupDataPoints || payload?.rollup_data_points || payload?.dataPoints || [];
+}
+
+function quoteFilterValue(value) {
+  return `"${String(value).replace(/"/g, '\\"')}"`;
+}
+
+function physicalIntervalFilter(dataTypeField, startIso, endIso) {
+  return [
+    `${dataTypeField}.interval.start_time >= ${quoteFilterValue(startIso)}`,
+    `${dataTypeField}.interval.start_time < ${quoteFilterValue(endIso)}`
+  ].join(' AND ');
+}
+
+function physicalSampleFilter(dataTypeField, startIso, endIso) {
+  return [
+    `${dataTypeField}.sample_time.physical_time >= ${quoteFilterValue(startIso)}`,
+    `${dataTypeField}.sample_time.physical_time < ${quoteFilterValue(endIso)}`
+  ].join(' AND ');
+}
+
+function sleepEndFilter(startIso, endIso) {
+  return [
+    `sleep.interval.end_time >= ${quoteFilterValue(startIso)}`,
+    `sleep.interval.end_time < ${quoteFilterValue(endIso)}`
+  ].join(' AND ');
 }
 
 function pointStartTime(point, dataKey) {
@@ -198,6 +225,88 @@ function printSample(label, value, depth = 8) {
   console.dir(value || null, { depth });
 }
 
+function dataPointsPath(dataType, options = {}) {
+  const url = new URL(`/users/me/dataTypes/${encodeURIComponent(dataType)}/dataPoints`, 'https://placeholder.local');
+  url.searchParams.set('pageSize', String(options.pageSize || 5));
+  if (options.filter) url.searchParams.set('filter', options.filter);
+  return `${url.pathname}${url.search}`;
+}
+
+async function printRawApiProbe(label, context, apiPath) {
+  console.log(`\n[raw-probe] ${label}`);
+  console.log(apiPath);
+
+  try {
+    const payload = await googleHealthApi('GET', apiPath, context);
+    const dataPoints = payload?.dataPoints || payload?.data_points || [];
+    console.log({
+      ok: true,
+      keys: Object.keys(payload || {}),
+      dataPoints_count: Array.isArray(dataPoints) ? dataPoints.length : null,
+      nextPageToken: payload?.nextPageToken || payload?.next_page_token || null
+    });
+    console.dir(payload, { depth: 12 });
+  } catch (error) {
+    console.log({ ok: false, error: error.message });
+  }
+}
+
+async function runRawProbe(context, startIso, endIso) {
+  console.log('\n[check_google_health] raw API probe');
+
+  await printRawApiProbe('dataTypes list', context, '/users/me/dataTypes?pageSize=100');
+
+  const probes = [
+    {
+      label: 'heart-rate current filter',
+      dataType: 'heart-rate',
+      filter: physicalSampleFilter('heart_rate', startIso, endIso)
+    },
+    {
+      label: 'heart-rate without filter',
+      dataType: 'heart-rate'
+    },
+    {
+      label: 'heart_rate candidate without filter',
+      dataType: 'heart_rate'
+    },
+    {
+      label: 'steps current filter',
+      dataType: 'steps',
+      filter: physicalIntervalFilter('steps', startIso, endIso)
+    },
+    {
+      label: 'steps without filter',
+      dataType: 'steps'
+    },
+    {
+      label: 'step candidate without filter',
+      dataType: 'step'
+    },
+    {
+      label: 'step-count candidate without filter',
+      dataType: 'step-count'
+    },
+    {
+      label: 'sleep current filter',
+      dataType: 'sleep',
+      filter: sleepEndFilter(startIso, endIso)
+    },
+    {
+      label: 'sleep without filter',
+      dataType: 'sleep'
+    }
+  ];
+
+  for (const probe of probes) {
+    await printRawApiProbe(
+      probe.label,
+      context,
+      dataPointsPath(probe.dataType, { filter: probe.filter, pageSize: 5 })
+    );
+  }
+}
+
 async function main() {
   const userId = Number(argValue('--user-id', argValue('--user_id', '1')));
   if (!Number.isInteger(userId) || userId <= 0) {
@@ -227,6 +336,10 @@ async function main() {
 
   console.log('\n[check_google_health] query range');
   console.dir({ user_id: userId, startIso, endIso });
+
+  if (process.argv.includes('--raw-probe')) {
+    await runRawProbe(context, startIso, endIso);
+  }
 
   const [heart, steps, sleep, caloriesPoints] = await Promise.all([
     fetchHeartRateDataPoints(context, startIso, endIso),

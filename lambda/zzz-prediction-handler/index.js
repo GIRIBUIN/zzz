@@ -27,6 +27,33 @@ function kstDateDaysAgo(days) {
   return kstDateString(new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000));
 }
 
+function parseDebugRange(qs = {}, body = {}) {
+  const start = qs.debug_start ?? qs.start ?? body.debug_start ?? body.start;
+  const end = qs.debug_end ?? qs.end ?? body.debug_end ?? body.end;
+
+  if (start == null && end == null) return null;
+  if (start == null || end == null) throw new Error("debug_start and debug_end must be provided together");
+
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate >= endDate) {
+    throw new Error("invalid debug prediction range");
+  }
+
+  return {
+    startLocalIso: kstIsoLocal(startDate),
+    endLocalIso: kstIsoLocal(endDate),
+  };
+}
+
+function rangeWhere(column = "ts") {
+  return `${column} >= ? AND (? IS NULL OR ${column} < ?)`;
+}
+
+function rangeParams(startIso, endIso) {
+  return [startIso, endIso, endIso];
+}
+
 async function dbGet(sql, params) {
   const [rows] = await pool.query(sql, params);
   return rows[0] || null;
@@ -83,18 +110,18 @@ async function callSlm(prompt) {
 
 const RECENT_N_DAYS = 7;
 
-async function buildPresleepFeatures(userId, sinceIso) {
+async function buildPresleepFeatures(userId, sinceIso, endIso = null) {
   const [heartRow, stepsRow, sensorRow, sleepRows, latestPattern, lowSatRow, caloriesRow] = await Promise.all([
-    dbGet(`SELECT AVG(bpm) AS avg_hr_1h, MAX(bpm) AS max_hr_1h FROM google_health_heart WHERE user_id = ? AND ts >= ?`, [userId, sinceIso]),
-    dbGet(`SELECT COALESCE(SUM(steps), 0) AS steps_sum_1h FROM google_health_steps WHERE user_id = ? AND ts >= ?`, [userId, sinceIso]),
-    dbGet(`SELECT AVG(temperature) AS avg_temp_1h, AVG(humidity) AS avg_humidity_1h, AVG(mq5_index) AS avg_mq5_index_1h, MAX(mq5_raw) AS max_mq5_raw_1h FROM sensor_raw WHERE user_id = ? AND ts >= ?`, [userId, sinceIso]),
+    dbGet(`SELECT AVG(bpm) AS avg_hr_1h, MAX(bpm) AS max_hr_1h FROM google_health_heart WHERE user_id = ? AND ${rangeWhere("ts")}`, [userId, ...rangeParams(sinceIso, endIso)]),
+    dbGet(`SELECT COALESCE(SUM(steps), 0) AS steps_sum_1h FROM google_health_steps WHERE user_id = ? AND ${rangeWhere("ts")}`, [userId, ...rangeParams(sinceIso, endIso)]),
+    dbGet(`SELECT AVG(temperature) AS avg_temp_1h, AVG(humidity) AS avg_humidity_1h, AVG(mq5_index) AS avg_mq5_index_1h, MAX(mq5_raw) AS max_mq5_raw_1h FROM sensor_raw WHERE user_id = ? AND ${rangeWhere("ts")}`, [userId, ...rangeParams(sinceIso, endIso)]),
     dbAll(`SELECT minutes_asleep FROM google_health_sleep WHERE user_id = ? AND is_main_sleep = 1 ORDER BY sleep_date DESC LIMIT ?`, [userId, RECENT_N_DAYS]),
     dbGet(`SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend FROM pattern_profile WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`, [userId]),
     dbGet(
       `SELECT COUNT(DISTINCT pr.target_sleep_date) AS cnt FROM prediction_result pr JOIN user_feedback uf ON pr.user_id = uf.user_id AND pr.target_sleep_date = uf.sleep_date WHERE pr.user_id = ? AND pr.target_sleep_date >= ? AND uf.satisfaction_score < 50 AND pr.risk_level IN ('MEDIUM', 'HIGH')`,
       [userId, kstDateDaysAgo(RECENT_N_DAYS)]
     ),
-    dbGet(`SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h FROM google_health_calories WHERE user_id = ? AND ts >= ?`, [userId, sinceIso]).catch(() => null),
+    dbGet(`SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h FROM google_health_calories WHERE user_id = ? AND ${rangeWhere("ts")}`, [userId, ...rangeParams(sinceIso, endIso)]).catch(() => null),
   ]);
 
   const sleepMinutes = sleepRows.map((r) => Number(r.minutes_asleep) || 0);
@@ -225,8 +252,9 @@ exports.handler = async (event) => {
     if (!user) return errRes(400, "user not found");
 
     // skip_collect=true 고정: Lambda에서는 Google Health 실시간 수집 불가
-    const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
-    const snapshot = await buildPresleepFeatures(userId, sinceIso);
+    const debugRange = parseDebugRange(qs, body);
+    const sinceIso = debugRange?.startLocalIso ?? kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
+    const snapshot = await buildPresleepFeatures(userId, sinceIso, debugRange?.endLocalIso ?? null);
     console.log("[zzz-prediction-handler] feature snapshot:", {
       user_id: snapshot.user_id,
       avg_hr_1h: snapshot.avg_hr_1h,

@@ -133,6 +133,24 @@ function todayRangeUtc() {
   };
 }
 
+function explicitRange(options = {}) {
+  if (!options.start_iso && !options.end_iso) return null;
+  if (!options.start_iso || !options.end_iso) {
+    throw new Error('start_iso and end_iso must be provided together');
+  }
+
+  const start = new Date(options.start_iso);
+  const end = new Date(options.end_iso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
+    throw new Error('invalid explicit collection range');
+  }
+
+  return {
+    startIso: options.start_iso,
+    endIso: options.end_iso
+  };
+}
+
 function nextDateString(dateString) {
   const date = new Date(`${dateString}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) return null;
@@ -398,7 +416,7 @@ async function saveSleepRaw(context, points) {
 async function collectPresleep(options = {}) {
   console.log('[collect_google_health] 취침 전 수집 시작');
   const context = await resolveGoogleHealthContext(options);
-  const { startIso, endIso } = recentRange(60);
+  const { startIso, endIso } = explicitRange(options) || recentRange(60);
 
   const [heartPoints, stepPoints, caloriesPayload] = await Promise.all([
     fetchHeartRateDataPoints(context.googleHealthAccount, startIso, endIso),
@@ -448,6 +466,8 @@ if (require.main === module) {
   const googleHealthAccountId = argValue('--google-health-account-id') || argValue('--google_health_account_id');
   const sleepDate = argValue('--sleep-date') || argValue('--sleep_date');
   const wakeDate = argValue('--wake-date') || argValue('--wake_date');
+  const startIso = argValue('--start') || argValue('--start-iso') || argValue('--start_iso');
+  const endIso = argValue('--end') || argValue('--end-iso') || argValue('--end_iso');
 
   if (!['presleep', 'postsleep'].includes(mode)) {
     console.error('--mode는 presleep 또는 postsleep 이어야 합니다.');
@@ -457,7 +477,12 @@ if (require.main === module) {
   (async () => {
     try {
       if (mode === 'presleep') {
-        await collectPresleep({ user_id: userId, google_health_account_id: googleHealthAccountId });
+        await collectPresleep({
+          user_id: userId,
+          google_health_account_id: googleHealthAccountId,
+          start_iso: startIso,
+          end_iso: endIso
+        });
       } else {
         await collectPostsleep({
           user_id: userId,

@@ -13,16 +13,44 @@ function hasStoredPresleepData(snapshot) {
   );
 }
 
+function parseDebugRange(req) {
+  const start = req.query.debug_start || req.query.start;
+  const end = req.query.debug_end || req.query.end;
+
+  if (!start && !end) return null;
+  if (!start || !end) {
+    throw new Error("debug_start and debug_end must be provided together");
+  }
+
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate >= endDate) {
+    throw new Error("invalid debug prediction range");
+  }
+
+  return {
+    startIso: start,
+    endIso: end,
+    startLocalIso: kstIsoLocal(startDate),
+    endLocalIso: kstIsoLocal(endDate)
+  };
+}
+
 async function postPresleepPrediction(req, res) {
   try {
     const userId = await requireUserIdFromRequest(req);
     let collectionWarning = null;
     const skipCollect = req.query.skip_collect === 'true';
+    const debugRange = parseDebugRange(req);
 
     if (!skipCollect) {
       try {
         console.log("[predictController] Google Health 데이터 수집 시작");
-        await collectPresleep({ user_id: userId });
+        await collectPresleep({
+          user_id: userId,
+          start_iso: debugRange?.startIso,
+          end_iso: debugRange?.endIso
+        });
         console.log("[predictController] Google Health 데이터 수집 완료");
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
@@ -33,8 +61,10 @@ async function postPresleepPrediction(req, res) {
       console.log("[predictController] 데이터 수집 단계 생략 (skip_collect=true)");
     }
 
-    const sinceIso = kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
-    const snapshot = await buildPresleepFeatures(userId, sinceIso);
+    const sinceIso = debugRange?.startLocalIso ?? kstIsoLocal(new Date(Date.now() - 60 * 60 * 1000));
+    const snapshot = await buildPresleepFeatures(userId, sinceIso, {
+      endIso: debugRange?.endLocalIso
+    });
     console.log("[predictController] feature snapshot:", snapshot);
 
     if (!hasStoredPresleepData(snapshot)) {

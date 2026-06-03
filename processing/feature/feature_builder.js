@@ -16,9 +16,11 @@ function dbAll(sql, params) {
 }
 
 function normalizeArgs(userIdOrSinceIso, maybeSinceIso) {
-  const legacyCall = maybeSinceIso === undefined;
+  const legacyCall = maybeSinceIso === undefined || typeof maybeSinceIso === "object";
   const userId = legacyCall ? 1 : Number(userIdOrSinceIso);
+  const rangeOptions = legacyCall && typeof maybeSinceIso === "object" ? maybeSinceIso : {};
   const sinceIso = legacyCall ? userIdOrSinceIso : maybeSinceIso;
+  const endIso = rangeOptions.endIso ?? rangeOptions.end_iso ?? null;
 
   if (!Number.isInteger(userId) || userId <= 0) {
     throw new Error("user_id must be a positive integer");
@@ -28,24 +30,33 @@ function normalizeArgs(userIdOrSinceIso, maybeSinceIso) {
     throw new Error("sinceIso is required");
   }
 
-  return { userId, sinceIso };
+  return { userId, sinceIso, endIso };
+}
+
+function rangeWhere(column = "ts") {
+  return `${column} >= ? AND (? IS NULL OR ${column} < ?)`;
+}
+
+function rangeParams(sinceIso, endIso) {
+  return [sinceIso, endIso, endIso];
 }
 
 // sinceIso: ISO 8601 string marking the start of the 1-hour window
-async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
-  const { userId, sinceIso } = normalizeArgs(userIdOrSinceIso, maybeSinceIso);
+async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso, options = {}) {
+  const { userId, sinceIso, endIso } = normalizeArgs(userIdOrSinceIso, maybeSinceIso);
+  const effectiveEndIso = options.endIso ?? options.end_iso ?? endIso;
   const [heartRow, stepsRow, sensorRow, sleepRows, latestPattern, lowSatRow, caloriesRow] = await Promise.all([
     dbGet(
       `SELECT AVG(bpm) AS avg_hr_1h, MAX(bpm) AS max_hr_1h
        FROM google_health_heart
-       WHERE user_id = ? AND ts >= ?`,
-      [userId, sinceIso]
+       WHERE user_id = ? AND ${rangeWhere("ts")}`,
+      [userId, ...rangeParams(sinceIso, effectiveEndIso)]
     ),
     dbGet(
       `SELECT COALESCE(SUM(steps), 0) AS steps_sum_1h
        FROM google_health_steps
-       WHERE user_id = ? AND ts >= ?`,
-      [userId, sinceIso]
+       WHERE user_id = ? AND ${rangeWhere("ts")}`,
+      [userId, ...rangeParams(sinceIso, effectiveEndIso)]
     ),
     dbGet(
       `SELECT AVG(temperature) AS avg_temp_1h,
@@ -53,8 +64,8 @@ async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
               AVG(mq5_index)   AS avg_mq5_index_1h,
               MAX(mq5_raw)     AS max_mq5_raw_1h
        FROM sensor_raw
-       WHERE user_id = ? AND ts >= ?`,
-      [userId, sinceIso]
+       WHERE user_id = ? AND ${rangeWhere("ts")}`,
+      [userId, ...rangeParams(sinceIso, effectiveEndIso)]
     ),
     dbAll(
       `SELECT minutes_asleep
@@ -84,8 +95,8 @@ async function buildPresleepFeatures(userIdOrSinceIso, maybeSinceIso) {
     dbGet(
       `SELECT COALESCE(SUM(calories), 0) AS calories_sum_1h
        FROM google_health_calories
-       WHERE user_id = ? AND ts >= ?`,
-      [userId, sinceIso]
+       WHERE user_id = ? AND ${rangeWhere("ts")}`,
+      [userId, ...rangeParams(sinceIso, effectiveEndIso)]
     ).catch(() => null)  // defensive: returns null if table not yet populated
   ]);
 

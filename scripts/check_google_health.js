@@ -8,6 +8,7 @@
  *   node scripts/check_google_health.js --user-id 1 --start 2026-06-01T00:00:00+09:00 --end 2026-06-02T23:59:59+09:00
  *   node scripts/check_google_health.js --user-id 1 --recent-minutes 60
  *   node scripts/check_google_health.js --user-id 1 --start 2026-06-03 --end 2026-06-03 --raw-probe
+ *   node scripts/check_google_health.js --user-id 1 --start 2026-06-03 --end 2026-06-03 --raw-probe --raw-probe-pages 10
  *
  * This does not save collected data. It only prints API response counts and one sample per data type.
  */
@@ -232,29 +233,51 @@ function dataPointsPath(dataType, options = {}) {
   return `${url.pathname}${url.search}`;
 }
 
-async function printRawApiProbe(label, context, apiPath) {
+function setPageToken(apiPath, pageToken) {
+  const url = new URL(apiPath, 'https://placeholder.local');
+  url.searchParams.set('pageToken', pageToken);
+  return `${url.pathname}${url.search}`;
+}
+
+async function printRawApiProbe(label, context, apiPath, maxPages = 1) {
   console.log(`\n[raw-probe] ${label}`);
   console.log(apiPath);
 
+  let currentPath = apiPath;
+  let pagesRead = 0;
+  let totalDataPoints = 0;
+
   try {
-    const payload = await googleHealthApi('GET', apiPath, context);
-    const dataPoints = payload?.dataPoints || payload?.data_points || [];
-    console.log({
-      ok: true,
-      keys: Object.keys(payload || {}),
-      dataPoints_count: Array.isArray(dataPoints) ? dataPoints.length : null,
-      nextPageToken: payload?.nextPageToken || payload?.next_page_token || null
-    });
-    console.dir(payload, { depth: 12 });
+    do {
+      pagesRead += 1;
+      const payload = await googleHealthApi('GET', currentPath, context);
+      const dataPoints = payload?.dataPoints || payload?.data_points || [];
+      const nextPageToken = payload?.nextPageToken || payload?.next_page_token || null;
+      const pageCount = Array.isArray(dataPoints) ? dataPoints.length : 0;
+      totalDataPoints += pageCount;
+
+      console.log({
+        ok: true,
+        page: pagesRead,
+        keys: Object.keys(payload || {}),
+        dataPoints_count: pageCount,
+        total_dataPoints_count: totalDataPoints,
+        nextPageToken
+      });
+      console.dir(payload, { depth: 12 });
+
+      if (!nextPageToken || pagesRead >= maxPages) break;
+      currentPath = setPageToken(apiPath, nextPageToken);
+    } while (true);
   } catch (error) {
     console.log({ ok: false, error: error.message });
   }
 }
 
-async function runRawProbe(context, startIso, endIso) {
+async function runRawProbe(context, startIso, endIso, maxPages) {
   console.log('\n[check_google_health] raw API probe');
 
-  await printRawApiProbe('dataTypes list', context, '/users/me/dataTypes?pageSize=100');
+  await printRawApiProbe('dataTypes list', context, '/users/me/dataTypes?pageSize=100', 1);
 
   const probes = [
     {
@@ -302,7 +325,8 @@ async function runRawProbe(context, startIso, endIso) {
     await printRawApiProbe(
       probe.label,
       context,
-      dataPointsPath(probe.dataType, { filter: probe.filter, pageSize: 5 })
+      dataPointsPath(probe.dataType, { filter: probe.filter, pageSize: 5 }),
+      maxPages
     );
   }
 }
@@ -317,6 +341,12 @@ async function main() {
   const recentMinutes = recentMinutesArg == null ? null : Number(recentMinutesArg);
   if (recentMinutes != null && (!Number.isFinite(recentMinutes) || recentMinutes <= 0)) {
     throw new Error('--recent-minutes must be a positive number');
+  }
+
+  const rawProbePagesArg = argValue('--raw-probe-pages', argValue('--raw_probe_pages', '1'));
+  const rawProbePages = Number(rawProbePagesArg);
+  if (!Number.isInteger(rawProbePages) || rawProbePages <= 0) {
+    throw new Error('--raw-probe-pages must be a positive integer');
   }
 
   const range = recentMinutes == null
@@ -338,7 +368,7 @@ async function main() {
   console.dir({ user_id: userId, startIso, endIso });
 
   if (process.argv.includes('--raw-probe')) {
-    await runRawProbe(context, startIso, endIso);
+    await runRawProbe(context, startIso, endIso, rawProbePages);
   }
 
   const [heart, steps, sleep, caloriesPoints] = await Promise.all([

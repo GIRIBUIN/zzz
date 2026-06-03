@@ -9,6 +9,8 @@ const resultEmpty = document.getElementById("resultEmpty");
 const resultFields = document.getElementById("resultFields");
 
 const predictBtn = document.getElementById("predictBtn");
+const debugStartInput = document.getElementById("debugStart");
+const debugEndInput = document.getElementById("debugEnd");
 
 function showStatus(message, type = "default") {
   if (!predictionStatus) return;
@@ -132,6 +134,48 @@ function formatUnit(value, unit, digits = 1) {
   return `${text}${unit}`;
 }
 
+function todayDateString() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function todayTimeToKstIso(value) {
+  if (!value) return null;
+  return `${todayDateString()}T${value.length === 5 ? `${value}:00` : value}+09:00`;
+}
+
+function readDebugRange() {
+  const startValue = debugStartInput?.value || "";
+  const endValue = debugEndInput?.value || "";
+
+  if (!startValue && !endValue) return null;
+  if (!startValue || !endValue) {
+    throw new Error("입력 데이터 시작과 종료를 모두 선택하세요.");
+  }
+
+  const startIso = todayTimeToKstIso(startValue);
+  const endIso = todayTimeToKstIso(endValue);
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
+    throw new Error("입력 데이터 시간 범위를 확인하세요.");
+  }
+
+  return { startIso, endIso };
+}
+
+function withDebugRange(url, debugRange) {
+  if (!debugRange) return url;
+  const nextUrl = new URL(url, window.location.origin);
+  nextUrl.searchParams.set("debug_start", debugRange.startIso);
+  nextUrl.searchParams.set("debug_end", debugRange.endIso);
+  return nextUrl.toString();
+}
+
 function renderPredictionInputs(snapshot) {
   if (!snapshot) {
     showInputEmpty();
@@ -176,7 +220,7 @@ function renderPredictionResult(prediction) {
 async function loadLatestPrediction() {
   const user = window.ZZZAuth.requirePageUser({
     statusElement: predictionStatus,
-    disabledSelectors: ["#predictBtn", "#skipCollect"],
+    disabledSelectors: ["#predictBtn", "#skipCollect", "#debugStart", "#debugEnd"],
     message: "로그인 후 최신 예측 데이터를 조회할 수 있습니다."
   });
   if (!user) return;
@@ -211,7 +255,7 @@ async function loadLatestPrediction() {
 async function requestPrediction() {
   const user = window.ZZZAuth.requirePageUser({
     statusElement: predictionStatus,
-    disabledSelectors: ["#predictBtn", "#skipCollect"],
+    disabledSelectors: ["#predictBtn", "#skipCollect", "#debugStart", "#debugEnd"],
     message: "로그인 후 예측을 계산할 수 있습니다."
   });
   if (!user) return;
@@ -220,9 +264,11 @@ async function requestPrediction() {
 
   try {
     const skipCollect = document.getElementById("skipCollect").checked;
-    const url = skipCollect
+    const debugRange = readDebugRange();
+    const baseUrl = skipCollect
       ? window.ZZZAuth.predictPresleepUrl(user, true)
       : window.ZZZAuth.withUserQuery("/predict/presleep", user);
+    const url = withDebugRange(baseUrl, debugRange);
 
     const predictResponse = await fetch(url, {
       method: "POST",

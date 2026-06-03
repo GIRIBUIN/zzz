@@ -70,14 +70,15 @@
         <details class="advanced-options">
           <summary>고급 옵션</summary>
           <label class="checkbox-label"><input type="checkbox" id="skipCollect" /><span>수집 단계 스킵 (저장된 데이터만 사용)</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="useDebugRange" /><span>오늘 입력 데이터 시간 직접 선택</span></label>
           <div class="debug-range-options" aria-label="예측 입력 데이터 시간 범위">
             <label class="advanced-field">
               <span>오늘 입력 데이터 시작</span>
-              <input type="time" id="debugStart" />
+              <input type="time" id="debugStart" disabled />
             </label>
             <label class="advanced-field">
               <span>오늘 입력 데이터 종료</span>
-              <input type="time" id="debugEnd" />
+              <input type="time" id="debugEnd" disabled />
             </label>
           </div>
         </details>

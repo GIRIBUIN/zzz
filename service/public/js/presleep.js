@@ -9,6 +9,7 @@ const resultEmpty = document.getElementById("resultEmpty");
 const resultFields = document.getElementById("resultFields");
 
 const predictBtn = document.getElementById("predictBtn");
+const useDebugRangeInput = document.getElementById("useDebugRange");
 const debugStartInput = document.getElementById("debugStart");
 const debugEndInput = document.getElementById("debugEnd");
 
@@ -148,6 +149,8 @@ function todayTimeToKstIso(value) {
 }
 
 function readDebugRange() {
+  if (!useDebugRangeInput?.checked) return null;
+
   const startValue = debugStartInput?.value || "";
   const endValue = debugEndInput?.value || "";
 
@@ -166,6 +169,12 @@ function readDebugRange() {
   }
 
   return { startIso, endIso };
+}
+
+function syncDebugRangeInputs() {
+  const enabled = Boolean(useDebugRangeInput?.checked);
+  if (debugStartInput) debugStartInput.disabled = !enabled;
+  if (debugEndInput) debugEndInput.disabled = !enabled;
 }
 
 function withDebugRange(url, debugRange) {
@@ -220,7 +229,7 @@ function renderPredictionResult(prediction) {
 async function loadLatestPrediction() {
   const user = window.ZZZAuth.requirePageUser({
     statusElement: predictionStatus,
-    disabledSelectors: ["#predictBtn", "#skipCollect", "#debugStart", "#debugEnd"],
+    disabledSelectors: ["#predictBtn", "#skipCollect", "#useDebugRange", "#debugStart", "#debugEnd"],
     message: "로그인 후 최신 예측 데이터를 조회할 수 있습니다."
   });
   if (!user) return;
@@ -255,7 +264,7 @@ async function loadLatestPrediction() {
 async function requestPrediction() {
   const user = window.ZZZAuth.requirePageUser({
     statusElement: predictionStatus,
-    disabledSelectors: ["#predictBtn", "#skipCollect", "#debugStart", "#debugEnd"],
+    disabledSelectors: ["#predictBtn", "#skipCollect", "#useDebugRange", "#debugStart", "#debugEnd"],
     message: "로그인 후 예측을 계산할 수 있습니다."
   });
   if (!user) return;
@@ -291,4 +300,6 @@ async function requestPrediction() {
 }
 
 window.addEventListener("DOMContentLoaded", loadLatestPrediction);
+window.addEventListener("DOMContentLoaded", syncDebugRangeInputs);
+useDebugRangeInput?.addEventListener("change", syncDebugRangeInputs);
 predictBtn.addEventListener("click", requestPrediction);

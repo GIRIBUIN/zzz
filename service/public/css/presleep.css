@@ -7,6 +7,7 @@
 .debug-range-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
 .advanced-field { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 750; }
 .advanced-field input { width: 100%; min-height: 38px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--surface); color: var(--text); font: inherit; }
+.advanced-field input:disabled { opacity: 0.55; cursor: not-allowed; }
 .presleep-grid { display: grid; grid-template-columns: minmax(380px, 0.92fr) minmax(0, 1.08fr); gap: 20px; }
 #inputFields, #resultFields { display: grid; gap: 12px; }
 .input-data-layout { display: grid; gap: 14px; }

@@ -6,6 +6,7 @@
  * Usage from repository root:
  *   node scripts/check_google_health.js --start 2026-06-01 --end 2026-06-02
  *   node scripts/check_google_health.js --user-id 1 --start 2026-06-01T00:00:00+09:00 --end 2026-06-02T23:59:59+09:00
+ *   node scripts/check_google_health.js --user-id 1 --recent-minutes 60
  *
  * This does not save collected data. It only prints API response counts and one sample per data type.
  */
@@ -78,8 +79,85 @@ function defaultRange() {
   };
 }
 
+function recentRange(minutes) {
+  const end = new Date();
+  const start = new Date(end.getTime() - minutes * 60 * 1000);
+
+  return {
+    startIso: toKstIso(start),
+    endIso: toKstIso(end)
+  };
+}
+
 function rollupPoints(payload) {
   return payload?.rollupDataPoints || payload?.rollup_data_points || payload?.dataPoints || [];
+}
+
+function pointStartTime(point, dataKey) {
+  return (
+    point?.[dataKey]?.sampleTime?.physicalTime ||
+    point?.[dataKey]?.sample_time?.physical_time ||
+    point?.[dataKey]?.interval?.startTime ||
+    point?.[dataKey]?.interval?.start_time ||
+    point?.startTime ||
+    point?.start_time ||
+    null
+  );
+}
+
+function extractHeartBpm(point) {
+  return Number(
+    point?.heartRate?.beatsPerMinute ??
+    point?.heartRate?.bpm ??
+    point?.heart_rate?.beats_per_minute ??
+    point?.value?.bpm
+  );
+}
+
+function extractSteps(point) {
+  return Number(
+    point?.steps?.count ??
+    point?.steps?.countSum ??
+    point?.steps?.steps ??
+    point?.value?.steps
+  );
+}
+
+function extractCalories(point) {
+  return Number(
+    point?.totalCalories?.kcalSum ??
+    point?.total_calories?.kcal_sum ??
+    point?.calories ??
+    point?.value?.calories
+  );
+}
+
+function summarizeValues(points, extractValue) {
+  const values = (points || [])
+    .map(extractValue)
+    .filter(Number.isFinite);
+
+  const sum = values.reduce((total, value) => total + value, 0);
+
+  return {
+    parsed_count: values.length,
+    sum: values.length > 0 ? sum : null,
+    avg: values.length > 0 ? sum / values.length : null,
+    min: values.length > 0 ? Math.min(...values) : null,
+    max: values.length > 0 ? Math.max(...values) : null
+  };
+}
+
+function printCoverage(label, points, dataKey) {
+  const starts = (points || [])
+    .map((point) => pointStartTime(point, dataKey))
+    .filter(Boolean)
+    .sort();
+
+  console.log(`${label}:`, {
+    first_ts: starts[0] || null,
+    last_ts: starts[starts.length - 1] || null
+  });
 }
 
 function splitRange(startIso, endIso, maxDays) {
@@ -126,7 +204,15 @@ async function main() {
     throw new Error('--user-id must be a positive integer');
   }
 
-  const range = defaultRange();
+  const recentMinutesArg = argValue('--recent-minutes', argValue('--recent_minutes'));
+  const recentMinutes = recentMinutesArg == null ? null : Number(recentMinutesArg);
+  if (recentMinutes != null && (!Number.isFinite(recentMinutes) || recentMinutes <= 0)) {
+    throw new Error('--recent-minutes must be a positive number');
+  }
+
+  const range = recentMinutes == null
+    ? defaultRange()
+    : recentRange(recentMinutes);
   const startIso = normalizeStart(argValue('--start', range.startIso));
   const endIso = normalizeEnd(argValue('--end', range.endIso));
   const context = { user_id: userId };
@@ -156,6 +242,18 @@ async function main() {
     sleep: { count: sleep.length },
     calories_rollup: { count: caloriesPoints.length }
   });
+
+  console.log('\n[check_google_health] parsed metrics for query range');
+  console.table({
+    heart_bpm: summarizeValues(heart, extractHeartBpm),
+    steps: summarizeValues(steps, extractSteps),
+    calories_kcal: summarizeValues(caloriesPoints, extractCalories)
+  });
+
+  console.log('\n[check_google_health] timestamp coverage');
+  printCoverage('heart', heart, 'heartRate');
+  printCoverage('steps', steps, 'steps');
+  printCoverage('calories', caloriesPoints, 'totalCalories');
 
   printSample('heart', heart[0], 6);
   printSample('steps', steps[0], 6);

@@ -1,4 +1,4 @@
-import mysql from "mysql2/promise";
+const mysql = require("mysql2/promise");
 
 let pool;
 
@@ -60,7 +60,7 @@ function toMysqlDatetime(value) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   console.log("ZZZ IoT event:", JSON.stringify(event));
 
   const userId = requiredPositiveInt(event.user_id, "user_id");

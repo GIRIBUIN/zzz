@@ -1,7 +1,7 @@
 const db = require("../../storage/db/db");
 const { calcSleepScore } = require("../../processing/scoring/sleep_score");
 const { collectPostsleep } = require("../../rpi/google_health/collect_google_health");
-const { kstDateString } = require("../../utils/time");
+const { kstDateString, previousDateString } = require("../../utils/time");
 
 const inflightEnsures = new Map();
 
@@ -27,13 +27,6 @@ function todayStr() {
   return kstDateString();
 }
 
-function nextDateString(dateString) {
-  const date = new Date(`${dateString}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) return dateString;
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
-
 async function getSleepScore(userId, sleepDate) {
   return dbGet(
     `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score,
@@ -47,15 +40,19 @@ async function getSleepScore(userId, sleepDate) {
 }
 
 async function getSleepRow(userId, sleepDate) {
-  const nextSleepDate = nextDateString(sleepDate);
+  const previousSleepDate = previousDateString(sleepDate);
   return dbGet(
     `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
             deep_minutes, light_minutes, rem_minutes, is_main_sleep
      FROM google_health_sleep
-     WHERE user_id = ? AND sleep_date IN (?, ?)
-     ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC
+     WHERE user_id = ?
+       AND (sleep_date = ? OR DATE(end_time) = ? OR sleep_date = ?)
+     ORDER BY (sleep_date = ? OR DATE(end_time) = ?) DESC,
+              is_main_sleep DESC,
+              end_time DESC,
+              created_at DESC
      LIMIT 1`,
-    [userId, sleepDate, nextSleepDate, sleepDate]
+    [userId, sleepDate, sleepDate, previousSleepDate, sleepDate, sleepDate]
   );
 }
 
@@ -115,7 +112,7 @@ async function tryCollectSleep(userId, sleepDate) {
 
   try {
     console.log("[sleepScoreService] Google Health sleep sync start");
-    await collectPostsleep({ user_id: userId, sleep_date: sleepDate });
+    await collectPostsleep({ user_id: userId, wake_date: sleepDate });
     console.log("[sleepScoreService] Google Health sleep sync complete");
     return { action: "collected" };
   } catch (error) {

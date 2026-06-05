@@ -2,6 +2,7 @@ const db = require("../../storage/db/db");
 const { analyzePostSleep } = require("../../processing/analysis/post_analysis");
 const { buildAnalysisPrompt } = require("../../processing/slm/prompt_builder");
 const { callSlm } = require("../../processing/slm/slm_client");
+const { previousDateString } = require("../../utils/time");
 
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -26,6 +27,23 @@ function nextDateString(dateString) {
   if (Number.isNaN(date.getTime())) return dateString;
   date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().slice(0, 10);
+}
+
+async function getSleepRowForFeedbackDate(userId, sleepDate) {
+  const previousSleepDate = previousDateString(sleepDate);
+  return dbGet(
+    `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
+            deep_minutes, light_minutes, rem_minutes, is_main_sleep
+       FROM google_health_sleep
+       WHERE user_id = ?
+         AND (sleep_date = ? OR DATE(end_time) = ? OR sleep_date = ?)
+       ORDER BY (sleep_date = ? OR DATE(end_time) = ?) DESC,
+                is_main_sleep DESC,
+                end_time DESC,
+                created_at DESC
+       LIMIT 1`,
+    [userId, sleepDate, sleepDate, previousSleepDate, sleepDate, sleepDate]
+  );
 }
 
 function parseJsonObject(value) {
@@ -63,15 +81,7 @@ async function generatePostAnalysisForDate(userIdOrSleepDate, sleepDateOrSatisfa
   const nextSleepDate = nextDateString(sleepDate);
 
   const [sleepRow, scoreResult, predictionRow, patternProfile] = await Promise.all([
-    dbGet(
-      `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake,
-              deep_minutes, light_minutes, rem_minutes, is_main_sleep
-       FROM google_health_sleep
-       WHERE user_id = ? AND sleep_date IN (?, ?)
-       ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC
-       LIMIT 1`,
-      [userId, sleepDate, nextSleepDate, sleepDate]
-    ),
+    getSleepRowForFeedbackDate(userId, sleepDate),
     dbGet(
       `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score
        FROM sleep_score_result

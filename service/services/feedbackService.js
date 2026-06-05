@@ -8,7 +8,11 @@ const {
   generatePostAnalysisForDate,
   hasPostAnalysis
 } = require("./postAnalysisService");
-const { kstDateString, previousDateString } = require("../../utils/time");
+const { kstDateString } = require("../../utils/time");
+
+function isDateString(dateString) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateString));
+}
 
 function saveFeedbackRecord(payload) {
   return new Promise((resolve, reject) => {
@@ -37,13 +41,11 @@ function saveFeedbackRecord(payload) {
       return reject(new Error("satisfaction_score must be between 0 and 100"));
     }
 
-    // The post-sleep UI receives the morning wake date.
-    // Internally, records are grouped by the date the sleep started.
     const wake_date = inputDate;
-    const sleep_date = previousDateString(inputDate);
+    const sleep_date = inputDate;
 
-    if (!sleep_date) {
-      return reject(new Error("wake_date must be YYYY-MM-DD"));
+    if (!isDateString(sleep_date)) {
+      return reject(new Error("sleep_date must be YYYY-MM-DD"));
     }
 
     // 미래 날짜 입력 방지

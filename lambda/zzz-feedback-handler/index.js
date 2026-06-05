@@ -35,6 +35,10 @@ function nextDateString(dateString) {
   return date.toISOString().slice(0, 10);
 }
 
+function isDateString(dateString) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateString));
+}
+
 function kstDateDaysAgo(days) {
   return kstDateString(new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000));
 }
@@ -211,8 +215,8 @@ async function saveFeedbackRecord(userId, wakeDate, satisfactionScore) {
   const score = Number(satisfactionScore);
   if (score < 0 || score > 100) throw new Error("satisfaction_score must be between 0 and 100");
 
-  const sleepDate = previousDateString(wakeDate);
-  if (!sleepDate) throw new Error("wake_date must be YYYY-MM-DD");
+  if (!isDateString(wakeDate)) throw new Error("sleep_date must be YYYY-MM-DD");
+  const sleepDate = wakeDate;
 
   const today = kstDateString();
   if (wakeDate > today) throw new Error("future wake_date is not allowed");
@@ -238,6 +242,19 @@ async function saveFeedbackRecord(userId, wakeDate, satisfactionScore) {
   return { message: "feedback saved", action: "insert", id: inserted.lastID, user_id: userId, wake_date: wakeDate, sleep_date: sleepDate, satisfaction_score: score, created_at: now };
 }
 
+async function getSleepRowForFeedbackDate(userId, sleepDate) {
+  const previousSleepDate = previousDateString(sleepDate);
+  return dbGet(
+    `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep
+     FROM google_health_sleep
+     WHERE user_id = ?
+       AND (sleep_date = ? OR DATE(end_time) = ? OR sleep_date = ?)
+     ORDER BY (sleep_date = ? OR DATE(end_time) = ?) DESC, is_main_sleep DESC, end_time DESC, created_at DESC
+     LIMIT 1`,
+    [userId, sleepDate, sleepDate, previousSleepDate, sleepDate, sleepDate]
+  );
+}
+
 async function ensureSleepScore(userId, sleepDate) {
   const existing = await dbGet(
     `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at FROM sleep_score_result WHERE user_id = ? AND sleep_date = ? ORDER BY created_at DESC LIMIT 1`,
@@ -245,11 +262,7 @@ async function ensureSleepScore(userId, sleepDate) {
   );
   if (existing) return { action: "exists", sleep_date: sleepDate, score: existing };
 
-  const nextSleepDate = nextDateString(sleepDate);
-  const sleepRow = await dbGet(
-    `SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date IN (?, ?) ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC LIMIT 1`,
-    [userId, sleepDate, nextSleepDate, sleepDate]
-  );
+  const sleepRow = await getSleepRowForFeedbackDate(userId, sleepDate);
   if (!sleepRow) return { action: "skipped", sleep_date: sleepDate, reason: "sleep source data missing" };
 
   const patternProfile = await dbGet(
@@ -395,7 +408,7 @@ async function updatePattern(userId, sleepDate, satisfactionScore, sleepScoreTot
 async function generatePostAnalysis(userId, sleepDate, satisfactionScore) {
   const nextSleepDate = nextDateString(sleepDate);
   const [sleepRow, scoreResult, predictionRow, patternProfile] = await Promise.all([
-    dbGet(`SELECT sleep_date, start_time, end_time, minutes_asleep, minutes_awake, deep_minutes, light_minutes, rem_minutes, is_main_sleep FROM google_health_sleep WHERE user_id = ? AND sleep_date IN (?, ?) ORDER BY sleep_date = ? DESC, is_main_sleep DESC, created_at DESC LIMIT 1`, [userId, sleepDate, nextSleepDate, sleepDate]),
+    getSleepRowForFeedbackDate(userId, sleepDate),
     dbGet(`SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score FROM sleep_score_result WHERE user_id = ? AND sleep_date = ? ORDER BY created_at DESC LIMIT 1`, [userId, sleepDate]),
     dbGet(`SELECT feature_snapshot_json FROM prediction_result WHERE user_id = ? AND target_sleep_date IN (?, ?) ORDER BY target_sleep_date = ? DESC, prediction_ts DESC LIMIT 1`, [userId, sleepDate, nextSleepDate, sleepDate]),
     dbGet(`SELECT avg_presleep_hr, avg_sleep_minutes, avg_satisfaction, score_gap_trend FROM pattern_profile WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`, [userId]),

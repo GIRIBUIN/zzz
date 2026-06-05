@@ -447,7 +447,22 @@ async function generatePostAnalysis(userId, sleepDate, satisfactionScore) {
   let causes = [];
   try { causes = JSON.parse(analysis.causes_json) || []; } catch { }
 
-  return { action: "upsert", id: ins.lastID, user_id: userId, sleep_date: sleepDate, causes, analysis_text: analysisText, source: slmText ? "slm" : "rule", created_at: createdAt };
+  return {
+    action: "upsert",
+    id: ins.lastID,
+    user_id: userId,
+    sleep_date: sleepDate,
+    source_sleep: {
+      sleep_date: sleepRow.sleep_date,
+      start_time: sleepRow.start_time,
+      end_time: sleepRow.end_time,
+      minutes_asleep: sleepRow.minutes_asleep,
+    },
+    causes,
+    analysis_text: analysisText,
+    source: slmText ? "slm" : "rule",
+    created_at: createdAt,
+  };
 }
 
 // ─── 핸들러 ──────────────────────────────────────────────────────────────────

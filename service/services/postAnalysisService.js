@@ -151,6 +151,12 @@ async function generatePostAnalysisForDate(userIdOrSleepDate, sleepDateOrSatisfa
     id: insertResult.lastID,
     user_id: userId,
     sleep_date: sleepDate,
+    source_sleep: {
+      sleep_date: sleepRow.sleep_date,
+      start_time: sleepRow.start_time,
+      end_time: sleepRow.end_time,
+      minutes_asleep: sleepRow.minutes_asleep
+    },
     causes: parseJsonObject(analysis.causes_json) || [],
     analysis_text: analysisText,
     source: slmText ? "slm" : "rule",

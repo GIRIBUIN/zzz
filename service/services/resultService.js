@@ -58,7 +58,7 @@ async function getLatestResult(userId) {
       `SELECT id, user_id, sleep_date, time_asleep_score, deep_rem_score, restoration_score, total_score, created_at
        FROM sleep_score_result
        WHERE user_id = ?
-       ORDER BY id DESC
+       ORDER BY sleep_date DESC, created_at DESC, id DESC
        LIMIT 1`,
       [userId]
     ),
@@ -66,7 +66,7 @@ async function getLatestResult(userId) {
       `SELECT id, user_id, sleep_date, causes_json, analysis_text, created_at
        FROM post_analysis_result
        WHERE user_id = ?
-       ORDER BY id DESC
+       ORDER BY sleep_date DESC, created_at DESC, id DESC
        LIMIT 1`,
       [userId]
     ),

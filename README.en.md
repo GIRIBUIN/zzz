@@ -1,3 +1,5 @@
+<img src="assets/icon.png" alt="ZZZ icon" width="80" height="80" />
+
 # 💤 ZZZ
 [![Korean](https://img.shields.io/badge/🇰🇷_Korean-555555?style=for-the-badge)](./README.md)
 [![English](https://img.shields.io/badge/🇺🇸_English-555555?style=for-the-badge)](./README.en.md)
@@ -15,7 +17,7 @@
 ![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
 ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
-![Fitbit](https://img.shields.io/badge/Fitbit-00B0B9?style=for-the-badge&logo=fitbit&logoColor=white)
+![Google Health](https://img.shields.io/badge/Google%20Health-4285F4?style=for-the-badge&logo=google&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 
 ![Status](https://img.shields.io/badge/Status-In%20Progress-6DB33F?style=for-the-badge)
@@ -26,14 +28,22 @@
 
 ---
 
+## Demo
+
+[![Watch the ZZZ demo](assets/thumbnail.png)](https://youtu.be/eqvWtHHWINI)
+
+The Quick Start below runs the SQLite-based local demo on `main`. The AWS implementation is maintained on the [`aws-lambda`](https://github.com/GIRIBUIN/zzz/tree/aws-lambda) branch.
+
+---
+
 ## 🚀 Quick Start
 
 After cloning the project, run the following commands from the project root to open the **seed-data demo**.
 
 This Quick Start is the default demo flow for presentation and review.
 
-- No Fitbit account, Fitbit API token, Raspberry Pi, DHT11, or MQ-5 sensor is required.
-- `npm run seed-demo` inserts demo Fitbit, sensor, sleep, feedback, and pattern data into SQLite.
+- No Google Health account, API token, Raspberry Pi, DHT11, or MQ-5 sensor is required.
+- `npm run seed-demo` inserts demo wearable, sensor, sleep, feedback, and pattern data into SQLite.
 - Ollama is optional and is only needed when extending natural-language feedback.
 
 ```bash
@@ -136,7 +146,7 @@ ZZZ is designed as a **smart healthcare system centered on On-Premise implementa
 
 ### On-Premise Layer
 - environmental sensing through Raspberry Pi
-- Fitbit API collection
+- Google Health API collection
 - local buffering and storage
 - feature generation
 - pre-sleep prediction
@@ -158,7 +168,7 @@ The current project focuses on **On-Premise implementation first**, while keepin
 - **Backend**: Node.js, Express
 - **Database**: SQLite
 - **Hardware**: Raspberry Pi, DHT11, MQ-5 + ADC module
-- **External API**: Fitbit Web API
+- **External API**: Google Health API
 - **Infra**: AWS *(future extension architecture)*
 
 ---
@@ -194,4 +204,5 @@ More details about the project structure, execution flow, and layer responsibili
 
 ---
 
-**Keywords**: `Smart Healthcare` `Sleep Quality Prediction` `Wearable Data` `Fitbit API` `Raspberry Pi` `Environmental Sensing` `Explainable Feedback` `Personalized Health Service` `On-Premise System`
+**Keywords**: `Smart Healthcare` `Sleep Quality Prediction` `Wearable Data` `Google Health API` `Raspberry Pi` `Environmental Sensing` `Explainable Feedback` `Personalized Health Service` `On-Premise System`
+

@@ -1,3 +1,5 @@
+<img src="assets/icon.png" alt="ZZZ icon" width="80" height="80" />
+
 # 💤 ZZZ
 [![한국어](https://img.shields.io/badge/🇰🇷_Korean-555555?style=for-the-badge)](./README.md)
 [![English](https://img.shields.io/badge/🇺🇸_English-555555?style=for-the-badge)](./README.en.md)
@@ -23,6 +25,14 @@
 ![Domain](https://img.shields.io/badge/Domain-Smart%20Healthcare-0A66C2?style=for-the-badge)
 
 </div>
+
+---
+
+## 시연 영상
+
+[![ZZZ 시연 영상](assets/thumbnail.png)](https://youtu.be/eqvWtHHWINI)
+
+아래 Quick Start는 `main` 브랜치의 SQLite 기반 로컬 데모입니다. AWS 확장 구현은 [`aws-lambda`](https://github.com/GIRIBUIN/zzz/tree/aws-lambda) 브랜치에서 확인할 수 있습니다.
 
 ---
 
@@ -190,3 +200,4 @@ ZZZ는 **On-Premise 구현을 중심으로 설계된 스마트 헬스케어 시�
 ---
 
 **Keywords**: `Smart Healthcare` `Sleep Quality Prediction` `Wearable Data` `Google Health API` `Raspberry Pi` `Environmental Sensing` `Explainable Feedback` `Personalized Health Service` `On-Premise System`
+
